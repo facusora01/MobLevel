@@ -1,0 +1,13 @@
+{
+  "itemGroup.moblevel": "Example Mod Tab",
+  "block.moblevel.example_block": "Example Block",
+  "item.moblevel.example_item": "Example Item",
+
+  "moblevel.configuration.title": "Mob Level Configs",
+  "moblevel.configuration.section.moblevel.common.toml": "Mob Level Configs",
+  "moblevel.configuration.section.moblevel.common.toml.title": "Mob Level Configs",
+  "moblevel.configuration.items": "Item List",
+  "moblevel.configuration.logDirtBlock": "Log Dirt Block",
+  "moblevel.configuration.magicNumberIntroduction": "Magic Number Text",
+  "moblevel.configuration.magicNumber": "Magic Number"
+}
