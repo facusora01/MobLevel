@@ -40,11 +40,15 @@ public class MobEvents {
         int currentLevel = 0;
         boolean isFreshSpawn = true;
 
+        LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
+            mob.getType().getDescription().getString(), mob.getTags());
+
         for (String tag : mob.getTags()) {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
                     isFreshSpawn = false;
+                    LOGGER.info("  Found existing level tag: {}", currentLevel);
                 } catch (NumberFormatException e) {
                 }
                 break;
@@ -54,6 +58,8 @@ public class MobEvents {
         if (currentLevel == 0) {
             currentLevel = calculateLevel(mob.getRandom());
             mob.addTag("lvl:" + currentLevel);
+            LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
+                currentLevel, mob.getTags());
         }
 
         if (isFreshSpawn) {
@@ -79,22 +85,17 @@ public class MobEvents {
         if (!(event.getEntity() instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
 
+        LOGGER.debug("onLivingDrops: {} | Level: {} | Drops: {}",
+            mob.getType().getDescription().getString(), level, event.getDrops().size());
+
         // Only modify drops if level is found and > 0
         if (level > 0) {
-            double lootMultiplierPerLevel = 0.02;
-
             for (ItemEntity itemEntity : event.getDrops()) {
                 ItemStack stack = itemEntity.getItem();
                 int originalCount = stack.getCount();
-                float multiplier = 1.0f + (level * (float) lootMultiplierPerLevel);
+                int newCount = DropsCalculator.calculateDropCount(originalCount, level);
 
-                if (level >= 150) {
-                    multiplier += 3.0f;
-                }
-
-                int newCount = Math.round(originalCount * multiplier);
-
-                if (newCount > originalCount) {
+                if (DropsCalculator.shouldIncreaseDrops(originalCount, newCount)) {
                     stack.setCount(newCount);
                     itemEntity.setPickUpDelay(10);
                 }
@@ -293,15 +294,13 @@ public class MobEvents {
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
-        for (String tag : entity.getTags()) {
-            if (tag.startsWith("lvl:")) {
-                try {
-                    return Integer.parseInt(tag.substring(4));
-                } catch (NumberFormatException e) {
-                    return 0;
-                }
-            }
+        int level = DropsCalculator.getLevelFromTags(entity.getTags());
+        if (level == 0) {
+            LOGGER.debug("getLevelFromEntity: {} HAS NO LEVEL TAG (tags: {})",
+                entity.getType().getDescription().getString(), entity.getTags());
+        } else {
+            LOGGER.debug("getLevelFromEntity: {} -> level {}", entity.getType().getDescription().getString(), level);
         }
-        return 0;
+        return level;
     }
 }

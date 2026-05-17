@@ -1,58 +1,78 @@
 package com.moblevel;
 
+import static org.junit.Assert.*;
+import org.junit.Test;
+
 public class DropsCalculatorTest {
 
-    public static int calculateNewCount(int level, int originalCount) {
-        int baseBonus = level / 50;
-        float percentBonus = 1.0f + (level * 0.05f);
-        int newCount = Math.round(originalCount * percentBonus) + baseBonus;
-        return newCount;
+    @Test
+    public void testNoLevelNoMultiplier() {
+        int result = DropsCalculator.calculateDropCount(10, 0);
+        assertEquals(10, result);
     }
 
-    public static void main(String[] args) {
-        System.out.println("=== Drops Calculator Test ===\n");
+    @Test
+    public void testLevel1() {
+        int result = DropsCalculator.calculateDropCount(1, 1);
+        assertEquals(1, result);
+    }
 
-        // Test cases
-        int[] levels = {5, 10, 20, 30, 50, 75, 100, 130, 150};
-        int[] itemCounts = {1, 3};
+    @Test
+    public void testLevel50() {
+        int result = DropsCalculator.calculateDropCount(1, 50);
+        assertEquals(2, result);
+    }
 
-        for (int count : itemCounts) {
-            System.out.println("Original count: " + count);
-            System.out.println("Level | Base Bonus | % Bonus | Result | Expected");
-            System.out.println("------|------------|---------|--------|----------");
+    @Test
+    public void testLevel100() {
+        int result = DropsCalculator.calculateDropCount(1, 100);
+        assertEquals(3, result);
+    }
 
-            for (int level : levels) {
-                int baseBonus = level / 50;
-                float percentBonus = 1.0f + (level * 0.05f);
-                int result = calculateNewCount(level, count);
+    @Test
+    public void testLevel130() {
+        int result = DropsCalculator.calculateDropCount(1, 130);
+        assertEquals(4, result);
+    }
 
-                System.out.printf("%3d   | %2d         | %.2fx    | %3d    |\n",
-                    level, baseBonus, percentBonus, result);
-            }
-            System.out.println();
-        }
+    @Test
+    public void testLevel150WithBonus() {
+        int result = DropsCalculator.calculateDropCount(1, 150);
+        assertEquals(7, result);
+    }
 
-        // Specific tests
-        System.out.println("=== Specific Tests ===\n");
+    @Test
+    public void testLevel150Stack64() {
+        int result = DropsCalculator.calculateDropCount(64, 150);
+        assertEquals(448, result);
+    }
 
-        System.out.println("Level 20, count 1:");
-        int r20 = calculateNewCount(20, 1);
-        System.out.println("  Result: " + r20 + ", Expected: 2, Pass: " + (r20 == 2 ? "✓" : "✗"));
+    @Test
+    public void testStack10Level50() {
+        int result = DropsCalculator.calculateDropCount(10, 50);
+        assertEquals(20, result);
+    }
 
-        System.out.println("Level 50, count 1:");
-        int r50 = calculateNewCount(50, 1);
-        System.out.println("  Result: " + r50 + ", Expected: 4+, Pass: " + (r50 >= 4 ? "✓" : "✗"));
+    @Test
+    public void testShouldIncreaseDrops() {
+        assertTrue(DropsCalculator.shouldIncreaseDrops(1, 2));
+        assertTrue(DropsCalculator.shouldIncreaseDrops(10, 20));
+        assertFalse(DropsCalculator.shouldIncreaseDrops(10, 10));
+        assertFalse(DropsCalculator.shouldIncreaseDrops(20, 10));
+    }
 
-        System.out.println("Level 100, count 1:");
-        int r100 = calculateNewCount(100, 1);
-        System.out.println("  Result: " + r100 + ", Expected: 7-8, Pass: " + ((r100 == 7 || r100 == 8) ? "✓" : "✗"));
+    @Test
+    public void testLevel75() {
+        int result = DropsCalculator.calculateDropCount(1, 75);
+        assertEquals(3, result);
+    }
 
-        System.out.println("Level 150, count 1:");
-        int r150 = calculateNewCount(150, 1);
-        System.out.println("  Result: " + r150 + ", Expected: 11-12, Pass: " + ((r150 == 11 || r150 == 12) ? "✓" : "✗"));
+    @Test
+    public void testLevel150Boundary() {
+        int result149 = DropsCalculator.calculateDropCount(1, 149);
+        assertEquals(4, result149);
 
-        System.out.println("\nLevel 50, count 3 (stack):");
-        int r50_3 = calculateNewCount(50, 3);
-        System.out.println("  Result: " + r50_3 + ", Expected: 11+, Pass: " + (r50_3 >= 11 ? "✓" : "✗"));
+        int result150 = DropsCalculator.calculateDropCount(1, 150);
+        assertEquals(7, result150);
     }
 }

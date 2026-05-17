@@ -4,7 +4,17 @@
       "Bash(Copy-Item -Path \"c:\\\\Users\\\\FacuS\\\\OneDrive\\\\Escritorio\\\\Sora\\\\Proyect\\\\MobLevel\\\\MobLevel-main\\\\src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Destination \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Force)",
       "PowerShell(Copy-Item -Path \"c:\\\\Users\\\\FacuS\\\\OneDrive\\\\Escritorio\\\\Sora\\\\Proyect\\\\MobLevel\\\\MobLevel-main\\\\src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Destination \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Force)",
       "PowerShell(New-Item -ItemType Directory -Path \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\" -Force)",
-      "PowerShell(./gradlew build 2>&1)"
+      "PowerShell(./gradlew build 2>&1)",
+      "PowerShell(./gradlew test 2>&1)",
+      "PowerShell(./gradlew test --no-build-cache --rerun-tasks 2>&1)",
+      "PowerShell(javac -d . src/test/java/com/moblevel/TagAndNameTest.java 2>&1)",
+      "PowerShell(java com.moblevel.TagAndNameTest)",
+      "PowerShell(javac -d . src/test/java/com/moblevel/TagApplicationTest.java 2>&1)",
+      "PowerShell(java com.moblevel.TagApplicationTest)",
+      "PowerShell(javac -d . src/test/java/com/moblevel/ColorAndLootTest.java 2>&1)",
+      "PowerShell(java com.moblevel.ColorAndLootTest 2>&1)",
+      "Bash(./gradlew build *)",
+      "Bash(./gradlew test *)"
     ]
   }
 }
