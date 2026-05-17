@@ -243,11 +243,16 @@ public class MobEvents {
             }
         }
 
-        if (level >= 150) {
-            ItemStack totemNecklaceStack = new ItemStack(ModItems.TOTEM_NECKLACE.get());
-            mob.setItemSlot(EquipmentSlot.HEAD, totemNecklaceStack);
-            mob.setDropChance(EquipmentSlot.HEAD, 0.0f);
-            mob.addTag("HasTotemNecklace");
+        // Only equip totem necklace on hostile mobs that can wear equipment
+        if (level >= 150 && mob.canHoldItem(new ItemStack(ModItems.TOTEM_NECKLACE.get()))) {
+            try {
+                ItemStack totemNecklaceStack = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+                mob.setItemSlot(EquipmentSlot.HEAD, totemNecklaceStack);
+                mob.setDropChance(EquipmentSlot.HEAD, 0.0f);
+                mob.addTag("HasTotemNecklace");
+            } catch (Exception e) {
+                // Silently fail for mobs that don't support equipment
+            }
         }
     }
 
