@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Copy-Item -Path \"c:\\\\Users\\\\FacuS\\\\OneDrive\\\\Escritorio\\\\Sora\\\\Proyect\\\\MobLevel\\\\MobLevel-main\\\\src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Destination \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Force)",
+      "PowerShell(Copy-Item -Path \"c:\\\\Users\\\\FacuS\\\\OneDrive\\\\Escritorio\\\\Sora\\\\Proyect\\\\MobLevel\\\\MobLevel-main\\\\src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Destination \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\\\\totem_necklace.png\" -Force)",
+      "PowerShell(New-Item -ItemType Directory -Path \"src\\\\main\\\\resources\\\\assets\\\\moblevel\\\\textures\\\\item\" -Force)"
+    ]
+  }
+}

@@ -9,5 +9,8 @@
   "moblevel.configuration.items": "Item List",
   "moblevel.configuration.logDirtBlock": "Log Dirt Block",
   "moblevel.configuration.magicNumberIntroduction": "Magic Number Text",
-  "moblevel.configuration.magicNumber": "Magic Number"
+  "moblevel.configuration.magicNumber": "Magic Number",
+
+  "creativeTab.moblevel.mob_level_tab": "Mob Level Tab",
+  "item.moblevel.totem_necklace": "Totem Necklace"
 }
