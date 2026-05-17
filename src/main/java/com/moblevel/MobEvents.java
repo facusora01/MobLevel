@@ -78,32 +78,34 @@ public class MobEvents {
     static void onLivingDrops(LivingDropsEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
-        if (level <= 1) return;
 
-        double lootMultiplierPerLevel = 0.02;
+        // Only modify drops if level is found and > 0
+        if (level > 0) {
+            double lootMultiplierPerLevel = 0.02;
 
-        for (ItemEntity itemEntity : event.getDrops()) {
-            ItemStack stack = itemEntity.getItem();
-            int originalCount = stack.getCount();
-            float multiplier = 1.0f + (level * (float) lootMultiplierPerLevel);
+            for (ItemEntity itemEntity : event.getDrops()) {
+                ItemStack stack = itemEntity.getItem();
+                int originalCount = stack.getCount();
+                float multiplier = 1.0f + (level * (float) lootMultiplierPerLevel);
 
-            if (level >= 150) {
-                multiplier += 3.0f;
+                if (level >= 150) {
+                    multiplier += 3.0f;
+                }
+
+                int newCount = Math.round(originalCount * multiplier);
+
+                if (newCount > originalCount) {
+                    stack.setCount(newCount);
+                    itemEntity.setPickUpDelay(10);
+                }
             }
 
-            int newCount = Math.round(originalCount * multiplier);
-
-            if (newCount > originalCount) {
-                stack.setCount(newCount);
-                itemEntity.setPickUpDelay(10);
-            }
-        }
-
-        if (mob.getTags().contains("HasTotemNecklace")) {
-            if (RANDOM.nextFloat() < 0.1f) {
-                ItemStack necklaceDrop = new ItemStack(ModItems.TOTEM_NECKLACE.get());
-                ItemEntity dropEntity = new ItemEntity(mob.level(), mob.getX(), mob.getY(), mob.getZ(), necklaceDrop);
-                event.getDrops().add(dropEntity);
+            if (mob.getTags().contains("HasTotemNecklace")) {
+                if (RANDOM.nextFloat() < 0.1f) {
+                    ItemStack necklaceDrop = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+                    ItemEntity dropEntity = new ItemEntity(mob.level(), mob.getX(), mob.getY(), mob.getZ(), necklaceDrop);
+                    event.getDrops().add(dropEntity);
+                }
             }
         }
     }
