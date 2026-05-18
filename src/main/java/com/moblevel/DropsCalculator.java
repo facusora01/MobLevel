@@ -24,6 +24,20 @@ public class DropsCalculator {
         return newCount > originalCount;
     }
 
+    public static int calculateExperienceDrop(int originalXp, int level) {
+        if (level <= 0) {
+            return originalXp;
+        }
+
+        double xpMultiplier = 1.0 + (level * 0.01);
+
+        if (level >= 150) {
+            xpMultiplier += 2.0;
+        }
+
+        return Math.round(originalXp * (float) xpMultiplier);
+    }
+
     /**
      * Extract level from mob tags. Returns 0 if no lvl:X tag found.
      */

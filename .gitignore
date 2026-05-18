@@ -28,3 +28,4 @@ repo
 # --- Files ---
 
 MobLevel-main/
+src/test/java/com/moblevel/logs/

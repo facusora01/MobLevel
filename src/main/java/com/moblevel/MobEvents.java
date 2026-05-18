@@ -19,6 +19,7 @@ import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
@@ -75,6 +76,21 @@ public class MobEvents {
                 float multiplier = 1.0f + (level * damagePerLevel);
                 event.setAmount(event.getAmount() * multiplier);
             }
+        }
+    }
+
+    @SubscribeEvent
+    static void onExperienceDrop(LivingExperienceDropEvent event) {
+        if (!(event.getEntity() instanceof Mob mob)) return;
+        int level = getLevelFromEntity(mob);
+
+        if (level > 0) {
+            int originalXp = event.getDroppedExperience();
+            int newXp = DropsCalculator.calculateExperienceDrop(originalXp, level);
+            event.setDroppedExperience(newXp);
+
+            LOGGER.debug("onExperienceDrop: {} | Level: {} | XP: {} -> {}",
+                mob.getType().getDescription().getString(), level, originalXp, newXp);
         }
     }
 
