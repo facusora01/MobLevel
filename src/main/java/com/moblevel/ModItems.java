@@ -13,7 +13,23 @@ public class ModItems {
         new Item(new Item.Properties().stacksTo(1))
     );
 
+    private static boolean registered = false;
+
     public static void register(IEventBus modEventBus) {
+        if (registered) return;
         ITEMS.register(modEventBus);
+        registered = true;
+        MobLevel.LOGGER.info("ModItems.register() -> items registered");
+    }
+
+    public static boolean isRegistered() {
+        return registered;
+    }
+
+    public static Item getTotemNecklace() {
+        if (TOTEM_NECKLACE.isPresent()) {
+            return TOTEM_NECKLACE.get();
+        }
+        return new Item(new Item.Properties().stacksTo(1));
     }
 }

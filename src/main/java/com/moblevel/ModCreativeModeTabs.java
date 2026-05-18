@@ -14,11 +14,16 @@ public class ModCreativeModeTabs {
     public static final RegistryObject<CreativeModeTab> MOBLEVEL_TAB = CREATIVE_MODE_TABS.register("mob_level_tab",
             () -> CreativeModeTab.builder()
                     .title(Component.literal("MobLevel"))
-                    .icon(() -> new ItemStack(ModItems.TOTEM_NECKLACE.get()))
-                    .displayItems((features, output) -> output.accept(ModItems.TOTEM_NECKLACE.get()))
+                    .icon(() -> new ItemStack(ModItems.getTotemNecklace()))
+                    .displayItems((features, output) -> output.accept(ModItems.getTotemNecklace()))
                     .build());
 
     public static void register(IEventBus modEventBus) {
+        // Ensure ModItems is registered first
+        if (!ModItems.isRegistered()) {
+            ModItems.register(modEventBus);
+            MobLevel.LOGGER.info("ModItems auto-registered via ModCreativeModeTabs");
+        }
         CREATIVE_MODE_TABS.register(modEventBus);
     }
 }

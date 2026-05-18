@@ -121,9 +121,15 @@ public class MobEvents {
         ItemStack mainHand = entity.getMainHandItem();
         ItemStack offHand = entity.getOffhandItem();
 
-        boolean hasTotem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
-                mainHand.is(ModItems.TOTEM_NECKLACE.get()) ||
-                offHand.is(ModItems.TOTEM_NECKLACE.get());
+        boolean hasTotem = false;
+        try {
+            hasTotem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
+                    mainHand.is(ModItems.TOTEM_NECKLACE.get()) ||
+                    offHand.is(ModItems.TOTEM_NECKLACE.get());
+        } catch (NullPointerException e) {
+            LOGGER.warn("TOTEM_NECKLACE not registered yet, skipping death check");
+            return;
+        }
 
         if (hasTotem) {
             event.setCanceled(true);
