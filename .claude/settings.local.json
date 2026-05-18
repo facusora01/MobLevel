@@ -14,7 +14,9 @@
       "PowerShell(javac -d . src/test/java/com/moblevel/ColorAndLootTest.java 2>&1)",
       "PowerShell(java com.moblevel.ColorAndLootTest 2>&1)",
       "Bash(./gradlew build *)",
-      "Bash(./gradlew test *)"
+      "Bash(./gradlew test *)",
+      "Bash(mvn test *)",
+      "Bash(./gradlew runClient)"
     ]
   }
 }
