@@ -16,7 +16,8 @@
       "Bash(./gradlew build *)",
       "Bash(./gradlew test *)",
       "Bash(mvn test *)",
-      "Bash(./gradlew runClient)"
+      "Bash(./gradlew runClient)",
+      "WebSearch"
     ]
   }
 }

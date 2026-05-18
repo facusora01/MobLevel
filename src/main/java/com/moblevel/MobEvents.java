@@ -5,6 +5,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -38,7 +39,6 @@ public class MobEvents {
         if (event.getLevel().isClientSide()) return;
 
         int currentLevel = 0;
-        boolean isFreshSpawn = true;
 
         LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
             mob.getType().getDescription().getString(), mob.getTags());
@@ -47,7 +47,6 @@ public class MobEvents {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
-                    isFreshSpawn = false;
                     LOGGER.info("  Found existing level tag: {}", currentLevel);
                 } catch (NumberFormatException e) {
                 }
@@ -62,10 +61,9 @@ public class MobEvents {
                 currentLevel, mob.getTags());
         }
 
-        if (isFreshSpawn) {
-            applyLevelStats(mob, currentLevel);
-            updateMobName(mob, currentLevel);
-        }
+        // Apply stats and name to all mobs with valid level (fresh spawn or /summon with tag)
+        applyLevelStats(mob, currentLevel);
+        updateMobName(mob, currentLevel);
     }
 
     @SubscribeEvent
@@ -253,15 +251,16 @@ public class MobEvents {
         }
 
         // Only equip totem necklace on hostile mobs that can wear equipment
-        if (level >= 150 && mob.canHoldItem(new ItemStack(ModItems.TOTEM_NECKLACE.get()))) {
-            try {
-                ItemStack totemNecklaceStack = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+        try {
+            Item totemItem = ModItems.getTotemNecklace();
+            if (level >= 150 && mob.canHoldItem(new ItemStack(totemItem))) {
+                ItemStack totemNecklaceStack = new ItemStack(totemItem);
                 mob.setItemSlot(EquipmentSlot.HEAD, totemNecklaceStack);
                 mob.setDropChance(EquipmentSlot.HEAD, 0.0f);
                 mob.addTag("HasTotemNecklace");
-            } catch (Exception e) {
-                // Silently fail for mobs that don't support equipment
             }
+        } catch (Exception e) {
+            LOGGER.debug("Could not equip totem necklace: {}", e.getMessage());
         }
     }
 
