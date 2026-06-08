@@ -20,6 +20,7 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
+import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
@@ -57,6 +58,11 @@ public class MobEvents {
 
         if (currentLevel == 0) {
             currentLevel = calculateLevel(mob.getRandom());
+            if (BossMobUtil.isBossMob(mob)) {
+                currentLevel = BossMobUtil.getLevelForBossMob(currentLevel);
+                LOGGER.info("  BOSS MOB detected: {}, applying level limits: {}",
+                    mob.getType().getDescription().getString(), currentLevel);
+            }
             mob.addTag("lvl:" + currentLevel);
             LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
                 currentLevel, mob.getTags());
@@ -68,12 +74,33 @@ public class MobEvents {
     }
 
     @SubscribeEvent
+    static void onBabySpawn(BabyEntitySpawnEvent event) {
+        Mob child = event.getChild();
+        if (child == null) return;
+        if (child.level().isClientSide()) return;
+
+        int levelA = (event.getParentA() != null)
+            ? DropsCalculator.getLevelFromTags(event.getParentA().getTags()) : 0;
+        int levelB = (event.getParentB() != null)
+            ? DropsCalculator.getLevelFromTags(event.getParentB().getTags()) : 0;
+
+        int bonus = BreedingCalculator.MUTATION_MIN_BONUS
+            + RANDOM.nextInt(BreedingCalculator.MUTATION_MAX_BONUS - BreedingCalculator.MUTATION_MIN_BONUS + 1);
+        int childLevel = BreedingCalculator.calculateChildLevel(
+            levelA, levelB, RANDOM.nextDouble(), bonus, Config.MAX_LEVEL.get());
+
+        // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
+        child.addTag("lvl:" + childLevel);
+
+        LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
+    }
+
+    @SubscribeEvent
     static void onDamageCalculation(LivingDamageEvent event) {
         if (event.getSource().getEntity() instanceof Mob attacker) {
             int level = getLevelFromEntity(attacker);
             if (level > 0) {
-                float damagePerLevel = 0.02f;
-                float multiplier = 1.0f + (level * damagePerLevel);
+                float multiplier = DropsCalculator.getDamageMultiplier(level);
                 event.setAmount(event.getAmount() * multiplier);
             }
         }
@@ -104,14 +131,28 @@ public class MobEvents {
 
         // Only modify drops if level is found and > 0
         if (level > 0) {
-            for (ItemEntity itemEntity : event.getDrops()) {
-                ItemStack stack = itemEntity.getItem();
-                int originalCount = stack.getCount();
-                int newCount = DropsCalculator.calculateDropCount(originalCount, level);
+            if (level < DropsCalculator.VANILLA_LEVEL) {
+                // Sub-vanilla: drops escasos. Cada item tiene chance de caer; si cae, count = 1.
+                double dropChance = DropsCalculator.getDropChance(level);
+                java.util.Iterator<ItemEntity> it = event.getDrops().iterator();
+                while (it.hasNext()) {
+                    ItemEntity itemEntity = it.next();
+                    if (RANDOM.nextFloat() >= dropChance) {
+                        it.remove();
+                    } else {
+                        itemEntity.getItem().setCount(1);
+                    }
+                }
+            } else {
+                for (ItemEntity itemEntity : event.getDrops()) {
+                    ItemStack stack = itemEntity.getItem();
+                    int originalCount = stack.getCount();
+                    int newCount = DropsCalculator.calculateDropCount(originalCount, level);
 
-                if (DropsCalculator.shouldIncreaseDrops(originalCount, newCount)) {
-                    stack.setCount(newCount);
-                    itemEntity.setPickUpDelay(10);
+                    if (DropsCalculator.shouldIncreaseDrops(originalCount, newCount)) {
+                        stack.setCount(newCount);
+                        itemEntity.setPickUpDelay(10);
+                    }
                 }
             }
 
@@ -243,11 +284,10 @@ public class MobEvents {
     }
 
     private static void applyLevelStats(Mob mob, int level) {
-        double healthPerLevel = 0.05;
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
             double baseValue = maxHealth.getBaseValue();
-            double newValue = baseValue * (1.0 + (level * healthPerLevel));
+            double newValue = baseValue * DropsCalculator.getStatMultiplier(level);
             maxHealth.setBaseValue(newValue);
             mob.setHealth((float) newValue);
         }

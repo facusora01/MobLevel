@@ -19,6 +19,18 @@ public class Config {
     public static final ForgeConfigSpec.IntValue MAX_LEVEL = BUILDER
             .defineInRange("maxLevel", 150, 1, 1000);
 
+    public static final ForgeConfigSpec.BooleanValue BOSS_MOBS_HAVE_LEVEL_LIMITS = BUILDER
+            .comment("¿Aplicar límites de nivel a boss mobs como Dragon y Wither?")
+            .define("bossHaveLevelLimits", true);
+
+    public static final ForgeConfigSpec.IntValue BOSS_MIN_LEVEL = BUILDER
+            .comment("Nivel mínimo para boss mobs (Dragon, Wither, etc.)")
+            .defineInRange("bossMinLevel", 20, 1, 1000);
+
+    public static final ForgeConfigSpec.IntValue BOSS_MAX_LEVEL = BUILDER
+            .comment("Nivel máximo para boss mobs (Dragon, Wither, etc.)")
+            .defineInRange("bossMaxLevel", 80, 1, 1000);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static boolean validateItemName(final Object obj) {
