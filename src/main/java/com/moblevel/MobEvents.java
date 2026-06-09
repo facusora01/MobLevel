@@ -84,10 +84,12 @@ public class MobEvents {
         int levelB = (event.getParentB() != null)
             ? DropsCalculator.getLevelFromTags(event.getParentB().getTags()) : 0;
 
-        int bonus = BreedingCalculator.MUTATION_MIN_BONUS
-            + RANDOM.nextInt(BreedingCalculator.MUTATION_MAX_BONUS - BreedingCalculator.MUTATION_MIN_BONUS + 1);
+        int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
+        int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
+        int bonus = minBonus + RANDOM.nextInt(Math.max(1, maxBonus - minBonus + 1));
         int childLevel = BreedingCalculator.calculateChildLevel(
-            levelA, levelB, RANDOM.nextDouble(), bonus, Config.MAX_LEVEL.get());
+            levelA, levelB, RANDOM.nextDouble(),
+            Config.BREEDING_MUTATION_CHANCE.get(), bonus, Config.MAX_LEVEL.get());
 
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
@@ -268,19 +270,12 @@ public class MobEvents {
     }
 
     private static int calculateLevel(net.minecraft.util.RandomSource random) {
-        double eliteChance = Config.ELITE_CHANCE.get();
-        int maxLevel = Config.MAX_LEVEL.get();
-
-        if (random.nextDouble() < eliteChance) {
-            int minElite = 130;
-            return random.nextInt((maxLevel - minElite) + 1) + minElite;
-        }
-
-        int normalMax = 129;
-        double exponent = Config.LEVEL_RARITY_EXPONENT.get();
-        double randomVal = random.nextDouble();
-        double weightedVal = Math.pow(randomVal, exponent);
-        return (int) (weightedVal * (normalMax - 1)) + 1;
+        return LevelCalculator.rollSpawnLevel(
+            random.nextDouble(),
+            random.nextDouble(),
+            Config.HIGH_LEVEL_CHANCE.get(),
+            Config.LEVEL_RARITY_EXPONENT.get(),
+            Config.MAX_LEVEL.get());
     }
 
     private static void applyLevelStats(Mob mob, int level) {
