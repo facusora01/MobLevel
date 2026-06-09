@@ -131,10 +131,9 @@ public class MobEvents {
         LOGGER.debug("onLivingDrops: {} | Level: {} | Drops: {}",
             mob.getType().getDescription().getString(), level, event.getDrops().size());
 
-        // Only modify drops if level is found and > 0
         if (level > 0) {
             if (level < DropsCalculator.VANILLA_LEVEL) {
-                // Sub-vanilla: drops escasos. Cada item tiene chance de caer; si cae, count = 1.
+                // Sub-vanilla: each item rolls a drop chance; if it drops, count = 1.
                 double dropChance = DropsCalculator.getDropChance(level);
                 java.util.Iterator<ItemEntity> it = event.getDrops().iterator();
                 while (it.hasNext()) {
@@ -297,7 +296,7 @@ public class MobEvents {
                 field.setAccessible(true);
                 field.setInt(creeper, newRadius);
             } catch (Exception e) {
-                System.out.println("Error al modificar Creeper: " + e.getMessage());
+                LOGGER.warn("Failed to modify Creeper explosion radius: {}", e.getMessage());
             }
         }
 

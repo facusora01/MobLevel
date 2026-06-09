@@ -24,7 +24,7 @@ public class BreedingCalculatorTest {
 
     @Test
     public void testEqualParentsSustainsLevel() {
-        // Dos lvl 100 -> hijo 100 (granja sostenible, sin regresión)
+        // Two lvl 100 -> child 100 (sustainable farm, no regression)
         assertEquals(100, BreedingCalculator.calculateChildLevel(100, 100, NO_MUTATION, CHANCE, 5, MAX));
     }
 
@@ -69,7 +69,7 @@ public class BreedingCalculatorTest {
 
     @Test
     public void testMixedParentsDragTowardAverage() {
-        // 100 y 20 -> 60: mezclar con bajos arrastra hacia abajo
+        // 100 and 20 -> 60: mixing with low levels drags the average down
         assertEquals(60, BreedingCalculator.calculateChildLevel(100, 20, NO_MUTATION, CHANCE, 5, MAX));
     }
 }

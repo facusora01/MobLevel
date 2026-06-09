@@ -11,7 +11,7 @@ public class LevelCalculatorTest {
 
     @Test
     public void testCommonBandWhenBandRollAboveChance() {
-        // bandRoll 0.5 >= 0.05 -> banda común 1-20
+        // bandRoll 0.5 >= 0.05 -> common band 1-20
         int level = LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, MAX);
         assertTrue("Common band must be 1-20", level >= 1 && level <= 20);
     }
@@ -30,7 +30,7 @@ public class LevelCalculatorTest {
 
     @Test
     public void testHighBandWhenBandRollBelowChance() {
-        // bandRoll 0.01 < 0.05 -> banda alta >20
+        // bandRoll 0.01 < 0.05 -> high band >20
         int level = LevelCalculator.rollSpawnLevel(0.01, 0.5, HIGH_CHANCE, EXPONENT, MAX);
         assertTrue("High band must be > 20", level > 20);
         assertTrue("High band must be <= max", level <= MAX);
@@ -38,14 +38,14 @@ public class LevelCalculatorTest {
 
     @Test
     public void testHighBandLowEnd() {
-        // curveRoll 0 -> weighted 0 -> level 21 (mínimo de banda alta)
+        // curveRoll 0 -> weighted 0 -> level 21 (high band floor)
         int level = LevelCalculator.rollSpawnLevel(0.01, 0.0, HIGH_CHANCE, EXPONENT, MAX);
         assertEquals("High band floor is 21", 21, level);
     }
 
     @Test
     public void testHighBandExponentMakesHighLevelsRare() {
-        // Con exponente 3, curveRoll 0.5 -> 0.125 -> nivel bajo dentro de la banda alta
+        // With exponent 3, curveRoll 0.5 -> 0.125 -> low level within the high band
         int level = LevelCalculator.rollSpawnLevel(0.01, 0.5, HIGH_CHANCE, EXPONENT, MAX);
         // 21 + 0.125*130 = 21 + 16 = 37
         assertEquals(37, level);
@@ -59,7 +59,7 @@ public class LevelCalculatorTest {
 
     @Test
     public void testZeroHighChanceAlwaysCommon() {
-        // highChance 0 -> bandRoll 0.0 no es < 0 -> siempre común
+        // highChance 0 -> bandRoll 0.0 is not < 0 -> always common
         int level = LevelCalculator.rollSpawnLevel(0.0, 0.5, 0.0, EXPONENT, MAX);
         assertTrue("With 0 high chance always common", level <= 20);
     }
