@@ -10,6 +10,10 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 @Mod(MobLevel.MODID)
 public class MobLevel {
@@ -31,10 +35,20 @@ public class MobLevel {
         }
 
         modEventBus.addListener(this::onCommonSetup);
+        modEventBus.addListener(this::onAttributeModify);
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
         ModMessages.register();
-        LOGGER.info("MobLevel Setup completado.");
+        LOGGER.info("MobLevel setup complete.");
+    }
+
+    // Give every living entity ATTACK_DAMAGE so passive mobs can fight back when made aggressive.
+    private void onAttributeModify(EntityAttributeModificationEvent event) {
+        for (EntityType<? extends LivingEntity> type : event.getTypes()) {
+            if (!event.has(type, Attributes.ATTACK_DAMAGE)) {
+                event.add(type, Attributes.ATTACK_DAMAGE, 2.0);
+            }
+        }
     }
 }

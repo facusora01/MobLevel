@@ -5,12 +5,19 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import java.util.UUID;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.monster.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -34,6 +41,8 @@ import java.lang.reflect.Field;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
+    private static final double NAME_VISIBLE_RANGE = 12.0;
+    private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
 
     @SubscribeEvent
     static void onEntityJoinLevel(EntityJoinLevelEvent event) {
@@ -42,14 +51,14 @@ public class MobEvents {
 
         int currentLevel = 0;
 
-        LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
-            mob.getType().getDescription().getString(), mob.getTags());
+        // LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
+        //     mob.getType().getDescription().getString(), mob.getTags());
 
         for (String tag : mob.getTags()) {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
-                    LOGGER.info("  Found existing level tag: {}", currentLevel);
+                    // LOGGER.info("  Found existing level tag: {}", currentLevel);
                 } catch (NumberFormatException e) {
                 }
                 break;
@@ -60,12 +69,12 @@ public class MobEvents {
             currentLevel = calculateLevel(mob.getRandom());
             if (BossMobUtil.isBossMob(mob)) {
                 currentLevel = BossMobUtil.getLevelForBossMob(currentLevel);
-                LOGGER.info("  BOSS MOB detected: {}, applying level limits: {}",
-                    mob.getType().getDescription().getString(), currentLevel);
+                // LOGGER.info("  BOSS MOB detected: {}, applying level limits: {}",
+                //     mob.getType().getDescription().getString(), currentLevel);
             }
             mob.addTag("lvl:" + currentLevel);
-            LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
-                currentLevel, mob.getTags());
+            // LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
+            //     currentLevel, mob.getTags());
         }
 
         // Apply stats and name to all mobs with valid level (fresh spawn or /summon with tag)
@@ -94,7 +103,7 @@ public class MobEvents {
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
 
-        LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
+        // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
     }
 
     @SubscribeEvent
@@ -118,8 +127,8 @@ public class MobEvents {
             int newXp = DropsCalculator.calculateExperienceDrop(originalXp, level);
             event.setDroppedExperience(newXp);
 
-            LOGGER.debug("onExperienceDrop: {} | Level: {} | XP: {} -> {}",
-                mob.getType().getDescription().getString(), level, originalXp, newXp);
+            // LOGGER.debug("onExperienceDrop: {} | Level: {} | XP: {} -> {}",
+            //     mob.getType().getDescription().getString(), level, originalXp, newXp);
         }
     }
 
@@ -128,8 +137,8 @@ public class MobEvents {
         if (!(event.getEntity() instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
 
-        LOGGER.debug("onLivingDrops: {} | Level: {} | Drops: {}",
-            mob.getType().getDescription().getString(), level, event.getDrops().size());
+        // LOGGER.debug("onLivingDrops: {} | Level: {} | Drops: {}",
+        //     mob.getType().getDescription().getString(), level, event.getDrops().size());
 
         if (level > 0) {
             if (level < DropsCalculator.VANILLA_LEVEL) {
@@ -157,12 +166,12 @@ public class MobEvents {
                 }
             }
 
-            if (mob.getTags().contains("HasTotemNecklace")) {
-                if (RANDOM.nextFloat() < 0.1f) {
-                    ItemStack necklaceDrop = new ItemStack(ModItems.TOTEM_NECKLACE.get());
-                    ItemEntity dropEntity = new ItemEntity(mob.level(), mob.getX(), mob.getY(), mob.getZ(), necklaceDrop);
-                    event.getDrops().add(dropEntity);
-                }
+            // Level 150+ mobs have a 10% chance to drop the necklace on real death.
+            // Tied to level, not the save tag, since the tag is consumed when the totem is used.
+            if (level >= 150 && RANDOM.nextFloat() < 0.1f) {
+                ItemStack necklaceDrop = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+                ItemEntity dropEntity = new ItemEntity(mob.level(), mob.getX(), mob.getY(), mob.getZ(), necklaceDrop);
+                event.getDrops().add(dropEntity);
             }
         }
     }
@@ -177,9 +186,10 @@ public class MobEvents {
         ItemStack mainHand = entity.getMainHandItem();
         ItemStack offHand = entity.getOffhandItem();
 
-        boolean hasTotem = false;
+        boolean hasTotemTag = entity.getTags().contains("HasTotemNecklace");
+        boolean hasTotemItem = false;
         try {
-            hasTotem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
+            hasTotemItem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
                     mainHand.is(ModItems.TOTEM_NECKLACE.get()) ||
                     offHand.is(ModItems.TOTEM_NECKLACE.get());
         } catch (NullPointerException e) {
@@ -187,10 +197,13 @@ public class MobEvents {
             return;
         }
 
-        if (hasTotem) {
+        if (hasTotemTag || hasTotemItem) {
             event.setCanceled(true);
 
-            if (headItem.is(ModItems.TOTEM_NECKLACE.get())) {
+            if (hasTotemTag) {
+                // Mob carries the totem as a tag (no visible item), consume it on save.
+                entity.removeTag("HasTotemNecklace");
+            } else if (headItem.is(ModItems.TOTEM_NECKLACE.get())) {
                 entity.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
             } else if (mainHand.is(ModItems.TOTEM_NECKLACE.get())) {
                 entity.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
@@ -221,10 +234,22 @@ public class MobEvents {
         if (!(event.getEntity() instanceof Mob mob)) return;
 
         if (!mob.level().isClientSide()) {
+            // Sun-proof: level 150 zombies/skeletons don't burn in daylight.
+            if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
+                    && mob.level().isDay() && mob.level().canSeeSky(mob.blockPosition())
+                    && getLevelFromEntity(mob) >= 150) {
+                mob.clearFire();
+            }
+
             if (mob.tickCount % 20 == 0) {
                 int level = getLevelFromEntity(mob);
                 if (level > 0) {
                     updateMobName(mob, level);
+                    // Show the level label only while a player is nearby, no aiming required.
+                    boolean near = mob.level().getNearestPlayer(mob, NAME_VISIBLE_RANGE) != null;
+                    if (mob.isCustomNameVisible() != near) {
+                        mob.setCustomNameVisible(near);
+                    }
                 }
             }
             return;
@@ -300,17 +325,24 @@ public class MobEvents {
             }
         }
 
-        // Only equip totem necklace on hostile mobs that can wear equipment
-        try {
-            Item totemItem = ModItems.getTotemNecklace();
-            if (level >= 150 && mob.canHoldItem(new ItemStack(totemItem))) {
-                ItemStack totemNecklaceStack = new ItemStack(totemItem);
-                mob.setItemSlot(EquipmentSlot.HEAD, totemNecklaceStack);
-                mob.setDropChance(EquipmentSlot.HEAD, 0.0f);
-                mob.addTag("HasTotemNecklace");
+        if (level >= 150) {
+            // Move 1.5x faster. Transient modifier so it doesn't compound across world reloads.
+            AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) == null) {
+                moveSpeed.addTransientModifier(new AttributeModifier(
+                    SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
-        } catch (Exception e) {
-            LOGGER.debug("Could not equip totem necklace: {}", e.getMessage());
+
+            // Aggressive toward players, regardless of mob type (cows included).
+            if (mob instanceof PathfinderMob pathMob) {
+                mob.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(mob, Player.class, true));
+                mob.goalSelector.addGoal(2, new MeleeAttackGoal(pathMob, 1.2, false));
+            }
+        }
+
+        // Grant the totem death-save as an invisible tag (not a head item, so nothing renders).
+        if (level >= 150) {
+            mob.addTag("HasTotemNecklace");
         }
     }
 
@@ -344,18 +376,10 @@ public class MobEvents {
         String currentString = (currentName != null) ? currentName.getString() : "";
         if (!currentString.equals(newName.getString())) {
             mob.setCustomName(newName);
-            mob.setCustomNameVisible(true);
         }
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
-        int level = DropsCalculator.getLevelFromTags(entity.getTags());
-        if (level == 0) {
-            LOGGER.debug("getLevelFromEntity: {} HAS NO LEVEL TAG (tags: {})",
-                entity.getType().getDescription().getString(), entity.getTags());
-        } else {
-            LOGGER.debug("getLevelFromEntity: {} -> level {}", entity.getType().getDescription().getString(), level);
-        }
-        return level;
+        return DropsCalculator.getLevelFromTags(entity.getTags());
     }
 }
