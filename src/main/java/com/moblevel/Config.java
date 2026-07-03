@@ -9,9 +9,9 @@ public class Config {
 
     public static final ForgeConfigSpec.DoubleValue HIGH_LEVEL_CHANCE = BUILDER
             .comment("Chance (0.0 to 1.0) that a mob spawns ABOVE level 20.",
-                    "0.20 = 20%. The rest spawn in the common band 1-20.",
-                    "With exponent 1.5 this yields: exact level 50 ~0.17% (similar to vanilla pink sheep).")
-            .defineInRange("highLevelChance", 0.20, 0.0, 1.0);
+                    "0.065 = 6.5%. The rest spawn in the common band 1-20.",
+                    "With exponent 1.5 this yields: exact level 50 ~0.055%, level 150 ~0.03%.")
+            .defineInRange("highLevelChance", 0.065, 0.0, 1.0);
 
     public static final ForgeConfigSpec.DoubleValue LEVEL_RARITY_EXPONENT = BUILDER
             .comment("Rarity curve exponent within the high band (21-150). Higher = high levels rarer.",
