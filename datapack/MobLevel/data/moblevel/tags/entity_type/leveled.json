@@ -1,0 +1,33 @@
+{
+  "values": [
+    "minecraft:cow",
+    "minecraft:pig",
+    "minecraft:sheep",
+    "minecraft:chicken",
+    "minecraft:rabbit",
+    "minecraft:horse",
+    "minecraft:donkey",
+    "minecraft:llama",
+    "minecraft:goat",
+    "minecraft:mooshroom",
+    "minecraft:zombie",
+    "minecraft:husk",
+    "minecraft:skeleton",
+    "minecraft:stray",
+    "minecraft:creeper",
+    "minecraft:spider",
+    "minecraft:cave_spider",
+    "minecraft:enderman",
+    "minecraft:witch",
+    "minecraft:pillager",
+    "minecraft:vindicator",
+    "minecraft:zombified_piglin",
+    "minecraft:piglin",
+    "minecraft:wither_skeleton",
+    "minecraft:blaze",
+    "minecraft:slime",
+    "minecraft:magma_cube",
+    "minecraft:drowned",
+    "minecraft:phantom"
+  ]
+}
