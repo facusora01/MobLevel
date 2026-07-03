@@ -12,7 +12,12 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.MeleeAttackGoal;
+import net.minecraft.world.entity.ai.goal.PanicGoal;
+import net.minecraft.world.entity.ai.goal.WrappedGoal;
 import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
+import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
@@ -335,7 +340,17 @@ public class MobEvents {
 
             // Aggressive toward players, regardless of mob type (cows included).
             if (mob instanceof PathfinderMob pathMob) {
-                mob.targetSelector.addGoal(1, new NearestAttackableTargetGoal<>(mob, Player.class, true));
+                // Passive mobs flee via PanicGoal when hurt; remove it so they fight instead.
+                List<PanicGoal> panicGoals = new ArrayList<>();
+                for (WrappedGoal wrapped : mob.goalSelector.getAvailableGoals()) {
+                    if (wrapped.getGoal() instanceof PanicGoal panic) {
+                        panicGoals.add(panic);
+                    }
+                }
+                panicGoals.forEach(mob.goalSelector::removeGoal);
+
+                mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathMob));
+                mob.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(mob, Player.class, true));
                 mob.goalSelector.addGoal(2, new MeleeAttackGoal(pathMob, 1.2, false));
             }
         }
