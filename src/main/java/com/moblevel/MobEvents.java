@@ -368,6 +368,19 @@ public class MobEvents {
         }
     }
 
+    // Wipes the mob's old level and rolls a fresh one with the current spawn curve.
+    // Used by /moblevel restartLevels to fix worlds bloated by pre-1.2.1 levels.
+    static void reassignLevel(Mob mob) {
+        stripModData(mob);
+        int level = calculateLevel(mob.getRandom());
+        if (BossMobUtil.isBossMob(mob)) {
+            level = BossMobUtil.getLevelForBossMob(level);
+        }
+        mob.addTag("lvl:" + level);
+        applyLevelStats(mob, level, true);
+        updateMobName(mob, level);
+    }
+
     // Reverts everything MobLevel persisted on this entity back to vanilla.
     static void stripModData(Mob mob) {
         String lvlTag = null;
