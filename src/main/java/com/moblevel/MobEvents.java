@@ -52,6 +52,10 @@ public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
     private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
+    // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
+    static final String VERSION_TAG = "ml2";
+    // Per-world scoreboard objective that turns the one-time level migration on.
+    static final String MIGRATION_MARKER = "ml_restart_done";
     private static final DustParticleOptions PARTICLE =
         new DustParticleOptions(new org.joml.Vector3f(0.6f, 0.0f, 1.0f), 0.7f);
 
@@ -93,8 +97,12 @@ public class MobEvents {
                 //     mob.getType().getDescription().getString(), currentLevel);
             }
             mob.addTag("lvl:" + currentLevel);
-            // LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
-            //     currentLevel, mob.getTags());
+            mob.addTag(VERSION_TAG);
+        } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
+            // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
+            // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
+            reassignLevel(mob);
+            return;
         }
 
         // Apply stats and name to all mobs with valid level (fresh spawn or /summon with tag)
@@ -383,8 +391,14 @@ public class MobEvents {
             level = oldLevel;
         }
         mob.addTag("lvl:" + level);
+        mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
         updateMobName(mob, level);
+    }
+
+    private static boolean isMigrationEnabled(Mob mob) {
+        return mob.getServer() != null
+            && mob.getServer().getScoreboard().getObjective(MIGRATION_MARKER) != null;
     }
 
     // Reverts everything MobLevel persisted on this entity back to vanilla.
@@ -398,6 +412,7 @@ public class MobEvents {
         }
         if (lvlTag != null) mob.removeTag(lvlTag);
         mob.removeTag("HasTotemNecklace");
+        mob.removeTag(VERSION_TAG);
 
         Component name = mob.getCustomName();
         if (name != null && name.getString().startsWith("[Lv")) {
