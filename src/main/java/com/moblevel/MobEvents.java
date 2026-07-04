@@ -371,10 +371,16 @@ public class MobEvents {
     // Wipes the mob's old level and rolls a fresh one with the current spawn curve.
     // Used by /moblevel restartLevels to fix worlds bloated by pre-1.2.1 levels.
     static void reassignLevel(Mob mob) {
+        int oldLevel = DropsCalculator.getLevelFromTags(mob.getTags());
         stripModData(mob);
         int level = calculateLevel(mob.getRandom());
         if (BossMobUtil.isBossMob(mob)) {
             level = BossMobUtil.getLevelForBossMob(level);
+        }
+        // A re-roll can only lower a level: spamming the command deflates the world
+        // instead of slot-machining until a high level lands.
+        if (oldLevel > 0 && level > oldLevel) {
+            level = oldLevel;
         }
         mob.addTag("lvl:" + level);
         applyLevelStats(mob, level, true);

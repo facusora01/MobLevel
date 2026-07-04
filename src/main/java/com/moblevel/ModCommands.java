@@ -48,7 +48,8 @@ public class ModCommands {
                             "[MobLevel] Re-rolled levels for " + total + " loaded mobs with the current spawn rates. ")
                             .withStyle(ChatFormatting.GREEN)
                             .append(Component.literal(
-                                "Mobs in unloaded chunks keep their old level; run this again in other areas if needed.")
+                                "Re-rolls never raise a mob's level. Mobs in unloaded chunks keep their old level; "
+                                + "run this again in other areas if needed.")
                                 .withStyle(ChatFormatting.GRAY)), true);
                         return total;
                     })));
