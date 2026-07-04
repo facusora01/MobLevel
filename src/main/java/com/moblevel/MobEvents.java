@@ -60,6 +60,13 @@ public class MobEvents {
         if (!(event.getEntity() instanceof Mob mob)) return;
         if (event.getLevel().isClientSide()) return;
 
+        // Uninstall mode: strip MobLevel data instead of applying it, so the world
+        // can be returned to vanilla before the jar is removed.
+        if (Config.UNINSTALL_MODE.get()) {
+            stripModData(mob);
+            return;
+        }
+
         int currentLevel = 0;
         boolean freshSpawn = true;
 
@@ -101,6 +108,7 @@ public class MobEvents {
 
     @SubscribeEvent
     static void onBabySpawn(BabyEntitySpawnEvent event) {
+        if (Config.UNINSTALL_MODE.get()) return;
         Mob child = event.getChild();
         if (child == null) return;
         if (child.level().isClientSide()) return;
@@ -357,6 +365,50 @@ public class MobEvents {
         // Fresh spawns only: re-granting on chunk reload would refill a consumed totem.
         if (level >= 150 && freshSpawn) {
             mob.addTag("HasTotemNecklace");
+        }
+    }
+
+    // Reverts everything MobLevel persisted on this entity back to vanilla.
+    static void stripModData(Mob mob) {
+        String lvlTag = null;
+        for (String tag : mob.getTags()) {
+            if (tag.startsWith("lvl:")) {
+                lvlTag = tag;
+                break;
+            }
+        }
+        if (lvlTag != null) mob.removeTag(lvlTag);
+        mob.removeTag("HasTotemNecklace");
+
+        Component name = mob.getCustomName();
+        if (name != null && name.getString().startsWith("[Lv")) {
+            String raw = name.getString();
+            int end = raw.indexOf("] ");
+            String base = (end != -1) ? raw.substring(end + 2) : "";
+            // Keep a player-given nametag name; drop the name entirely if it was only ours.
+            if (base.isEmpty() || base.equals(mob.getType().getDescription().getString())) {
+                mob.setCustomName(null);
+            } else {
+                mob.setCustomName(Component.literal(base));
+            }
+            mob.setCustomNameVisible(false);
+        }
+
+        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            if (mob.getHealth() > mob.getMaxHealth()) {
+                mob.setHealth(mob.getMaxHealth());
+            }
+        }
+
+        if (mob instanceof Creeper creeper) {
+            try {
+                Field field = Creeper.class.getDeclaredField("explosionRadius");
+                field.setAccessible(true);
+                field.setInt(creeper, 3);
+            } catch (Exception ignored) {
+            }
         }
     }
 

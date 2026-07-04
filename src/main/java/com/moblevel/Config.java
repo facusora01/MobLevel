@@ -34,6 +34,13 @@ public class Config {
             .comment("Maximum level bonus on a breeding mutation.")
             .defineInRange("breedingMutationMaxBonus", 8, 1, 1000);
 
+    public static final ForgeConfigSpec.BooleanValue UNINSTALL_MODE = BUILDER
+            .comment("Set to true before removing the mod: instead of applying levels, MobLevel will",
+                    "strip all of its data (names, tags, health scaling, creeper radius) from every",
+                    "entity as its chunk loads. Let the world run / visit your areas, then remove the jar.",
+                    "Only chunks that load while this is on get cleaned.")
+            .define("uninstallMode", false);
+
     public static final ForgeConfigSpec.BooleanValue BOSS_MOBS_HAVE_LEVEL_LIMITS = BUILDER
             .comment("Apply level limits to boss mobs such as Ender Dragon and Wither?")
             .define("bossHaveLevelLimits", true);
