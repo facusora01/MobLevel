@@ -1,6 +1,8 @@
-# Level 150 perks: contact damage, sun immunity, 1.5x movement speed
-tag @s add ml_aggro
-scoreboard players set @s ml_cd 0
+# Level 150 perks: particles for all, contact damage only for hostiles,
+# sun immunity, 1.5x movement speed
+tag @s add ml_apex
+execute if entity @s[type=#moblevel:hostile] run tag @s add ml_aggro
+execute if entity @s[type=#moblevel:hostile] run scoreboard players set @s ml_cd 0
 execute if entity @s[type=#moblevel:burns_in_sun] run tag @s add ml_sun
 
 # Speed applied once (guarded so re-apply can't stack)

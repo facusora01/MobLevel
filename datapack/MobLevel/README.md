@@ -16,7 +16,9 @@ Drop the `MobLevel` folder (or the zip) into `<world>/datapacks/` and run
   Baselines are captured per mob, so re-applying can never compound.
 - **Colored name** — `[LvN]` colored by tier, shown when you look at the mob.
 - **Level 150 perks** — purple particles, sun immunity (zombies/skeletons),
-  1.5x movement speed, and contact damage to nearby players.
+  1.5x movement speed, and (hostiles only) contact damage to nearby players.
+- **Spyglass scanner** — scope at a leveled mob within 100 blocks and its
+  level tag is whispered to you in chat (walls block the scan).
 - **Boss limits** — Ender Dragon and Wither are clamped to levels 20-80.
 - **Breeding** — a baby inherits the average level of the two nearest adults,
   with a ~1% mutation that adds +3..8 (shiny-style climb).
@@ -34,9 +36,10 @@ Drop the `MobLevel` folder (or the zip) into `<world>/datapacks/` and run
 
 ## Limitations (vs the Forge mod)
 - **No real aggression** — datapacks can't add AI goals. "Aggression" is
-  contact damage: a level-150 mob hurts a player who stands within ~1.6 blocks.
-  It does not chase.
-- **No spyglass level scanner** — nameplate rendering is client-side.
+  contact damage from hostile level-150 mobs within ~1.6 blocks; passives never
+  deal damage, and nothing chases beyond its vanilla AI.
+- **Spyglass scan is chat-based** — the client can't render distant nameplates,
+  so the level arrives as a private chat line instead of a floating label.
 - **No level-scaled loot/XP on death** — the dead mob's level can't be read in
   the kill trigger, so the reward is flat.
 - **Passive mobs deal no melee** — handled via the contact-damage script instead.

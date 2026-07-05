@@ -10,6 +10,7 @@ execute if entity @s[tag=ml_spd] run function moblevel:set_speed with storage mo
 scoreboard players reset @s
 tag @s remove ml_leveled
 tag @s remove ml2
+tag @s remove ml_apex
 tag @s remove ml_aggro
 tag @s remove ml_sun
 tag @s remove ml_spd

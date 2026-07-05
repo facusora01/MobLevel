@@ -20,6 +20,7 @@ function moblevel:set_health with storage moblevel:v
 function moblevel:set_name
 
 # Level 150 perks (reset first so migration downgrades lose them)
+tag @s remove ml_apex
 tag @s remove ml_aggro
 tag @s remove ml_sun
 execute if score @s ml_level matches 150.. run function moblevel:apex
