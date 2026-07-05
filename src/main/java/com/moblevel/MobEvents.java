@@ -35,6 +35,8 @@ import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.world.item.Items;
@@ -56,6 +58,24 @@ public class MobEvents {
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.
     static final String MIGRATION_MARKER = "ml_restart_done";
+    // Mob was persistent (or pre-named) before we touched it: never despawn it ourselves.
+    static final String PERSIST_TAG = "ml_persist";
+    // Player renamed this mob with a name tag: keep vanilla name-tag persistence.
+    static final String NAMED_TAG = "ml_named";
+    private static final double DESPAWN_DISTANCE_SQ = 128.0 * 128.0;
+
+    // SRG name (f_32272_ = explosionRadius); resolved once, works in dev and in the
+    // reobfuscated production jar where the mojmap name does not exist.
+    private static final Field CREEPER_EXPLOSION_RADIUS = findCreeperRadiusField();
+
+    private static Field findCreeperRadiusField() {
+        try {
+            return ObfuscationReflectionHelper.findField(Creeper.class, "f_32272_");
+        } catch (Throwable t) {
+            LOGGER.warn("Creeper explosionRadius field not found; creeper scaling disabled: {}", t.getMessage());
+            return null;
+        }
+    }
     private static final DustParticleOptions PARTICLE =
         new DustParticleOptions(new org.joml.Vector3f(0.6f, 0.0f, 1.0f), 0.7f);
 
@@ -98,6 +118,12 @@ public class MobEvents {
             }
             mob.addTag("lvl:" + currentLevel);
             mob.addTag(VERSION_TAG);
+            // Captured before updateMobName: at this point hasCustomName() only reflects a
+            // pre-existing name (/summon CustomName) or the real PersistenceRequired flag.
+            // Our own level label must not stop natural despawning.
+            if (mob.isPersistenceRequired() || mob.isNoAi()) {
+                mob.addTag(PERSIST_TAG);
+            }
         } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
             // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
             // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
@@ -273,6 +299,9 @@ public class MobEvents {
         int level = getLevelFromEntity(mob);
         if (level <= 0) return;
 
+        // A real name tag grants vanilla persistence; keep honoring it.
+        mob.addTag(NAMED_TAG);
+
         MinecraftServer server = mob.getServer();
         if (server != null) {
             // Defer one tick so vanilla applies the rename first, then we prepend the prefix.
@@ -305,6 +334,22 @@ public class MobEvents {
                 mob.getX(), mob.getY() + mob.getBbHeight() * 0.6, mob.getZ(),
                 4, mob.getBbWidth() * 0.5, mob.getBbHeight() * 0.4, mob.getBbWidth() * 0.5, 0.01);
         }
+
+        // Our level label counts as a custom name, which blocks vanilla hostile despawning
+        // (isPersistenceRequired() includes hasCustomName()). Re-create the far-away despawn
+        // for monsters whose only persistence is our label, every 10 seconds.
+        if (mob.tickCount % 200 == 0
+                && mob.getType().getCategory() == MobCategory.MONSTER
+                && mob.hasCustomName()
+                && !mob.requiresCustomPersistence()
+                && getLevelFromEntity(mob) > 0
+                && !mob.getTags().contains(PERSIST_TAG)
+                && !mob.getTags().contains(NAMED_TAG)) {
+            Player nearest = mob.level().getNearestPlayer(mob, -1.0);
+            if (nearest == null || nearest.distanceToSqr(mob) > DESPAWN_DISTANCE_SQ) {
+                mob.discard();
+            }
+        }
     }
 
     private static int calculateLevel(net.minecraft.util.RandomSource random) {
@@ -330,15 +375,13 @@ public class MobEvents {
             }
         }
 
-        if (mob instanceof Creeper creeper) {
+        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
             if (newRadius > 12) newRadius = 12;
 
             try {
-                Field field = Creeper.class.getDeclaredField("explosionRadius");
-                field.setAccessible(true);
-                field.setInt(creeper, newRadius);
+                CREEPER_EXPLOSION_RADIUS.setInt(creeper, newRadius);
             } catch (Exception e) {
                 LOGGER.warn("Failed to modify Creeper explosion radius: {}", e.getMessage());
             }
@@ -436,11 +479,14 @@ public class MobEvents {
             }
         }
 
-        if (mob instanceof Creeper creeper) {
+        AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) != null) {
+            moveSpeed.removeModifier(SPEED_BOOST_UUID);
+        }
+
+        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
             try {
-                Field field = Creeper.class.getDeclaredField("explosionRadius");
-                field.setAccessible(true);
-                field.setInt(creeper, 3);
+                CREEPER_EXPLOSION_RADIUS.setInt(creeper, 3);
             } catch (Exception ignored) {
             }
         }
