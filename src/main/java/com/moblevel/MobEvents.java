@@ -33,10 +33,17 @@ import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
 import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.TickTask;
+import net.minecraft.world.item.Items;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.network.PacketDistributor;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
@@ -46,15 +53,46 @@ import java.lang.reflect.Field;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
-    private static final double NAME_VISIBLE_RANGE = 12.0;
     private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
+    // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
+    static final String VERSION_TAG = "ml2";
+    // Per-world scoreboard objective that turns the one-time level migration on.
+    static final String MIGRATION_MARKER = "ml_restart_done";
+    // Mob was persistent (or pre-named) before we touched it: never despawn it ourselves.
+    static final String PERSIST_TAG = "ml_persist";
+    // Player renamed this mob with a name tag: keep vanilla name-tag persistence.
+    static final String NAMED_TAG = "ml_named";
+    private static final double DESPAWN_DISTANCE_SQ = 128.0 * 128.0;
+
+    // SRG name (f_32272_ = explosionRadius); resolved once, works in dev and in the
+    // reobfuscated production jar where the mojmap name does not exist.
+    private static final Field CREEPER_EXPLOSION_RADIUS = findCreeperRadiusField();
+
+    private static Field findCreeperRadiusField() {
+        try {
+            return ObfuscationReflectionHelper.findField(Creeper.class, "f_32272_");
+        } catch (Throwable t) {
+            LOGGER.warn("Creeper explosionRadius field not found; creeper scaling disabled: {}", t.getMessage());
+            return null;
+        }
+    }
+    private static final DustParticleOptions PARTICLE =
+        new DustParticleOptions(new org.joml.Vector3f(0.6f, 0.0f, 1.0f), 0.7f);
 
     @SubscribeEvent
     static void onEntityJoinLevel(EntityJoinLevelEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
         if (event.getLevel().isClientSide()) return;
 
+        // Uninstall mode: strip MobLevel data instead of applying it, so the world
+        // can be returned to vanilla before the jar is removed.
+        if (Config.UNINSTALL_MODE.get()) {
+            stripModData(mob);
+            return;
+        }
+
         int currentLevel = 0;
+        boolean freshSpawn = true;
 
         // LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
         //     mob.getType().getDescription().getString(), mob.getTags());
@@ -63,7 +101,8 @@ public class MobEvents {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
-                    // LOGGER.info("  Found existing level tag: {}", currentLevel);
+                    // Existing tag = chunk reload or /summon with tag, not a fresh spawn.
+                    freshSpawn = false;
                 } catch (NumberFormatException e) {
                 }
                 break;
@@ -78,17 +117,32 @@ public class MobEvents {
                 //     mob.getType().getDescription().getString(), currentLevel);
             }
             mob.addTag("lvl:" + currentLevel);
-            // LOGGER.info("  NEW SPAWN - assigned level: {}, tags after: {}",
-            //     currentLevel, mob.getTags());
+            mob.addTag(VERSION_TAG);
+            // Captured before updateMobName: at this point hasCustomName() only reflects a
+            // pre-existing name (/summon CustomName) or the real PersistenceRequired flag.
+            // Our own level label must not stop natural despawning.
+            if (mob.isPersistenceRequired() || mob.isNoAi()) {
+                mob.addTag(PERSIST_TAG);
+            }
+        } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
+            // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
+            // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
+            reassignLevel(mob);
+            return;
         }
 
         // Apply stats and name to all mobs with valid level (fresh spawn or /summon with tag)
-        applyLevelStats(mob, currentLevel);
+        applyLevelStats(mob, currentLevel, freshSpawn);
         updateMobName(mob, currentLevel);
+        // Migrate old-world mobs saved with always-visible labels back to vanilla look-at.
+        if (mob.isCustomNameVisible()) {
+            mob.setCustomNameVisible(false);
+        }
     }
 
     @SubscribeEvent
     static void onBabySpawn(BabyEntitySpawnEvent event) {
+        if (Config.UNINSTALL_MODE.get()) return;
         Mob child = event.getChild();
         if (child == null) return;
         if (child.level().isClientSide()) return;
@@ -234,68 +288,74 @@ public class MobEvents {
         }
     }
 
+    // Re-apply the [LvN] prefix only when a player renames a leveled mob with a name tag.
+    // One deferred task for that single mob; no global per-tick scanning.
+    @SubscribeEvent
+    static void onNameTagUse(PlayerInteractEvent.EntityInteract event) {
+        if (event.getLevel().isClientSide()) return;
+        if (!(event.getTarget() instanceof Mob mob)) return;
+        if (!event.getItemStack().is(Items.NAME_TAG)) return;
+
+        int level = getLevelFromEntity(mob);
+        if (level <= 0) return;
+
+        // A real name tag grants vanilla persistence; keep honoring it.
+        mob.addTag(NAMED_TAG);
+
+        MinecraftServer server = mob.getServer();
+        if (server != null) {
+            // Defer one tick so vanilla applies the rename first, then we prepend the prefix.
+            server.tell(new TickTask(server.getTickCount() + 1, () -> {
+                if (mob.isAlive()) {
+                    updateMobName(mob, level);
+                }
+            }));
+        }
+    }
+
     @SubscribeEvent
     static void onEntityTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
+        // Do nothing on the client: names are synced automatically, particles are server-driven.
+        if (mob.level().isClientSide()) return;
 
-        if (!mob.level().isClientSide()) {
-            // Sun-proof: level 150 zombies/skeletons don't burn in daylight.
-            if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
-                    && mob.level().isDay() && mob.level().canSeeSky(mob.blockPosition())
-                    && getLevelFromEntity(mob) >= 150) {
-                mob.clearFire();
-            }
-
-            if (mob.tickCount % 20 == 0) {
-                int level = getLevelFromEntity(mob);
-                if (level > 0) {
-                    updateMobName(mob, level);
-                    // Show the level label only while a player is nearby, no aiming required.
-                    boolean near = mob.level().getNearestPlayer(mob, NAME_VISIBLE_RANGE) != null;
-                    if (mob.isCustomNameVisible() != near) {
-                        mob.setCustomNameVisible(near);
-                    }
-                }
-            }
-            return;
+        // Sun-proof for level 150 burners, checked every tick (fire re-ignites each tick at
+        // dawn, so throttling would let damage land). Gates ordered cheapest and most
+        // selective first: the 1-in-thousands level check runs before the heightmap lookup
+        // in canSeeSky, so a horde of ordinary burning zombies costs almost nothing extra.
+        if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
+                && mob.level().isDay()
+                && getLevelFromEntity(mob) >= 150
+                && mob.level().canSeeSky(mob.blockPosition())) {
+            mob.clearFire();
         }
 
-        Component name = mob.getCustomName();
-        if (name == null) return;
+        if (mob.tickCount % 10 != 0) return;
 
-        String nameStr = name.getString();
-        if (!nameStr.contains("[Lv")) return;
+        int level = getLevelFromEntity(mob);
+        if (level <= 0) return;
 
-        int visualLevel = 0;
-        try {
-            int start = nameStr.indexOf("[Lv") + 3;
-            int end = nameStr.indexOf("]");
-
-            if (end > start) {
-                String numStr = nameStr.substring(start, end).trim();
-                visualLevel = Integer.parseInt(numStr);
-            }
-        } catch (Exception e) {
-            return;
+        // Server-broadcast particles for level 150. No per-tick client work.
+        if (level >= 150 && mob.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(PARTICLE,
+                mob.getX(), mob.getY() + mob.getBbHeight() * 0.6, mob.getZ(),
+                4, mob.getBbWidth() * 0.5, mob.getBbHeight() * 0.4, mob.getBbWidth() * 0.5, 0.01);
         }
 
-        if (visualLevel < 150) return;
-
-        if (RANDOM.nextFloat() > 0.5f) return;
-
-        double spreadXZ = mob.getBbWidth() * 1.5;
-        double spreadY = mob.getBbHeight() * 1.2;
-        double x = mob.getX() + (RANDOM.nextDouble() - 0.5) * spreadXZ;
-        double y = mob.getY() + (RANDOM.nextDouble() * spreadY);
-        double z = mob.getZ() + (RANDOM.nextDouble() - 0.5) * spreadXZ;
-
-        double speed = 0.05;
-        double vx = (RANDOM.nextDouble() - 0.5) * speed;
-        double vy = (RANDOM.nextDouble() - 0.5) * speed;
-        double vz = (RANDOM.nextDouble() - 0.5) * speed;
-
-        DustParticleOptions particle = new DustParticleOptions(new org.joml.Vector3f(0.6f, 0.0f, 1.0f), 0.7f);
-        mob.level().addParticle(particle, x, y, z, vx, vy, vz);
+        // Our level label counts as a custom name, which blocks vanilla hostile despawning
+        // (isPersistenceRequired() includes hasCustomName()). Re-create the far-away despawn
+        // for monsters whose only persistence is our label, every 10 seconds.
+        if (mob.tickCount % 200 == 0
+                && mob.getType().getCategory() == MobCategory.MONSTER
+                && mob.hasCustomName()
+                && !mob.requiresCustomPersistence()
+                && !mob.getTags().contains(PERSIST_TAG)
+                && !mob.getTags().contains(NAMED_TAG)) {
+            Player nearest = mob.level().getNearestPlayer(mob, -1.0);
+            if (nearest == null || nearest.distanceToSqr(mob) > DESPAWN_DISTANCE_SQ) {
+                mob.discard();
+            }
+        }
     }
 
     private static int calculateLevel(net.minecraft.util.RandomSource random) {
@@ -307,24 +367,27 @@ public class MobEvents {
             Config.MAX_LEVEL.get());
     }
 
-    private static void applyLevelStats(Mob mob, int level) {
+    private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
-            double baseValue = maxHealth.getBaseValue();
-            double newValue = baseValue * DropsCalculator.getStatMultiplier(level);
+            // Recompute from the entity type's vanilla default, not the current base value:
+            // this event also fires on chunk reload, and scaling the already-scaled base
+            // would compound the multiplier on every reload.
+            double vanillaBase = getVanillaMaxHealth(mob, maxHealth.getBaseValue());
+            double newValue = vanillaBase * DropsCalculator.getStatMultiplier(level);
             maxHealth.setBaseValue(newValue);
-            mob.setHealth((float) newValue);
+            if (freshSpawn) {
+                mob.setHealth((float) newValue);
+            }
         }
 
-        if (mob instanceof Creeper creeper) {
+        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
             if (newRadius > 12) newRadius = 12;
 
             try {
-                Field field = Creeper.class.getDeclaredField("explosionRadius");
-                field.setAccessible(true);
-                field.setInt(creeper, newRadius);
+                CREEPER_EXPLOSION_RADIUS.setInt(creeper, newRadius);
             } catch (Exception e) {
                 LOGGER.warn("Failed to modify Creeper explosion radius: {}", e.getMessage());
             }
@@ -356,8 +419,94 @@ public class MobEvents {
         }
 
         // Grant the totem death-save as an invisible tag (not a head item, so nothing renders).
-        if (level >= 150) {
+        // Fresh spawns only: re-granting on chunk reload would refill a consumed totem.
+        if (level >= 150 && freshSpawn) {
             mob.addTag("HasTotemNecklace");
+        }
+    }
+
+    // Wipes the mob's old level and rolls a fresh one with the current spawn curve.
+    // Used by /moblevel restartLevels to fix worlds bloated by pre-1.2.1 levels.
+    static void reassignLevel(Mob mob) {
+        int oldLevel = DropsCalculator.getLevelFromTags(mob.getTags());
+        stripModData(mob);
+        int level = calculateLevel(mob.getRandom());
+        if (BossMobUtil.isBossMob(mob)) {
+            level = BossMobUtil.getLevelForBossMob(level);
+        }
+        // A re-roll can only lower a level: spamming the command deflates the world
+        // instead of slot-machining until a high level lands.
+        if (oldLevel > 0 && level > oldLevel) {
+            level = oldLevel;
+        }
+        mob.addTag("lvl:" + level);
+        mob.addTag(VERSION_TAG);
+        applyLevelStats(mob, level, true);
+        updateMobName(mob, level);
+    }
+
+    private static boolean isMigrationEnabled(Mob mob) {
+        return mob.getServer() != null
+            && mob.getServer().getScoreboard().getObjective(MIGRATION_MARKER) != null;
+    }
+
+    // Reverts everything MobLevel persisted on this entity back to vanilla.
+    static void stripModData(Mob mob) {
+        String lvlTag = null;
+        for (String tag : mob.getTags()) {
+            if (tag.startsWith("lvl:")) {
+                lvlTag = tag;
+                break;
+            }
+        }
+        if (lvlTag != null) mob.removeTag(lvlTag);
+        mob.removeTag("HasTotemNecklace");
+        mob.removeTag(VERSION_TAG);
+
+        Component name = mob.getCustomName();
+        if (name != null && name.getString().startsWith("[Lv")) {
+            String raw = name.getString();
+            int end = raw.indexOf("] ");
+            String base = (end != -1) ? raw.substring(end + 2) : "";
+            // Keep a player-given nametag name; drop the name entirely if it was only ours.
+            if (base.isEmpty() || base.equals(mob.getType().getDescription().getString())) {
+                mob.setCustomName(null);
+            } else {
+                mob.setCustomName(Component.literal(base));
+            }
+            mob.setCustomNameVisible(false);
+        }
+
+        AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            if (mob.getHealth() > mob.getMaxHealth()) {
+                mob.setHealth(mob.getMaxHealth());
+            }
+        }
+
+        AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) != null) {
+            moveSpeed.removeModifier(SPEED_BOOST_UUID);
+        }
+
+        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
+            try {
+                CREEPER_EXPLOSION_RADIUS.setInt(creeper, 3);
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    // Vanilla default max health for this entity type. Falls back to the current base
+    // divided by the level multiplier if the registry lookup fails.
+    private static double getVanillaMaxHealth(Mob mob, double fallbackBase) {
+        try {
+            var supplier = net.minecraft.world.entity.ai.attributes.DefaultAttributes
+                .getSupplier((net.minecraft.world.entity.EntityType<? extends LivingEntity>) mob.getType());
+            return supplier.getBaseValue(Attributes.MAX_HEALTH);
+        } catch (Exception e) {
+            return fallbackBase;
         }
     }
 
