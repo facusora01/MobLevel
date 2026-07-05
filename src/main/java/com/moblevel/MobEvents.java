@@ -319,17 +319,24 @@ public class MobEvents {
         // Do nothing on the client: names are synced automatically, particles are server-driven.
         if (mob.level().isClientSide()) return;
 
-        // Sun-proof for level 150 burners. isOnFire() is a cheap gate so nothing else runs
-        // for the vast majority of mobs that aren't currently burning.
+        // Sun-proof for level 150 burners, checked every tick (fire re-ignites each tick at
+        // dawn, so throttling would let damage land). Gates ordered cheapest and most
+        // selective first: the 1-in-thousands level check runs before the heightmap lookup
+        // in canSeeSky, so a horde of ordinary burning zombies costs almost nothing extra.
         if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
-                && mob.level().isDay() && mob.level().canSeeSky(mob.blockPosition())
-                && getLevelFromEntity(mob) >= 150) {
+                && mob.level().isDay()
+                && getLevelFromEntity(mob) >= 150
+                && mob.level().canSeeSky(mob.blockPosition())) {
             mob.clearFire();
         }
 
-        // Server-broadcast particles for level 150, every 10 ticks. No per-tick client work.
-        if (mob.tickCount % 10 == 0 && mob.level() instanceof ServerLevel serverLevel
-                && getLevelFromEntity(mob) >= 150) {
+        if (mob.tickCount % 10 != 0) return;
+
+        int level = getLevelFromEntity(mob);
+        if (level <= 0) return;
+
+        // Server-broadcast particles for level 150. No per-tick client work.
+        if (level >= 150 && mob.level() instanceof ServerLevel serverLevel) {
             serverLevel.sendParticles(PARTICLE,
                 mob.getX(), mob.getY() + mob.getBbHeight() * 0.6, mob.getZ(),
                 4, mob.getBbWidth() * 0.5, mob.getBbHeight() * 0.4, mob.getBbWidth() * 0.5, 0.01);
@@ -342,7 +349,6 @@ public class MobEvents {
                 && mob.getType().getCategory() == MobCategory.MONSTER
                 && mob.hasCustomName()
                 && !mob.requiresCustomPersistence()
-                && getLevelFromEntity(mob) > 0
                 && !mob.getTags().contains(PERSIST_TAG)
                 && !mob.getTags().contains(NAMED_TAG)) {
             Player nearest = mob.level().getNearestPlayer(mob, -1.0);
