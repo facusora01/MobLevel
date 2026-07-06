@@ -36,7 +36,6 @@ import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
-import net.minecraft.world.entity.MobCategory;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.world.item.Items;
@@ -342,17 +341,20 @@ public class MobEvents {
                 4, mob.getBbWidth() * 0.5, mob.getBbHeight() * 0.4, mob.getBbWidth() * 0.5, 0.01);
         }
 
-        // Our level label counts as a custom name, which blocks vanilla hostile despawning
+        // Our level label counts as a custom name, which blocks vanilla despawning
         // (isPersistenceRequired() includes hasCustomName()). Re-create the far-away despawn
-        // for monsters whose only persistence is our label, every 10 seconds.
+        // for mobs whose only persistence is our label, every 10 seconds.
+        // removeWhenFarAway is each entity's own vanilla despawn rule: monsters, ambient
+        // and water mobs return true, farm animals return false, so every type keeps
+        // its vanilla behavior instead of only covering the MONSTER category.
         if (mob.tickCount % 200 == 0
-                && mob.getType().getCategory() == MobCategory.MONSTER
                 && mob.hasCustomName()
                 && !mob.requiresCustomPersistence()
                 && !mob.getTags().contains(PERSIST_TAG)
                 && !mob.getTags().contains(NAMED_TAG)) {
             Player nearest = mob.level().getNearestPlayer(mob, -1.0);
-            if (nearest == null || nearest.distanceToSqr(mob) > DESPAWN_DISTANCE_SQ) {
+            double distSqr = (nearest == null) ? Double.MAX_VALUE : nearest.distanceToSqr(mob);
+            if (distSqr > DESPAWN_DISTANCE_SQ && mob.removeWhenFarAway(distSqr)) {
                 mob.discard();
             }
         }
@@ -512,7 +514,8 @@ public class MobEvents {
 
     private static void updateMobName(Mob mob, int level) {
         Component currentName = mob.getCustomName();
-        String rawName = (currentName != null) ? currentName.getString() : mob.getType().getDescription().getString();
+        String typeName = mob.getType().getDescription().getString();
+        String rawName = (currentName != null) ? currentName.getString() : typeName;
 
         String baseName = rawName;
 
@@ -534,8 +537,18 @@ public class MobEvents {
         if (level >= 150) color = ChatFormatting.DARK_PURPLE;
 
         String prefix = "[Lv" + level + "] ";
-        Component newName = Component.literal(prefix).withStyle(color)
-            .append(Component.literal(baseName).withStyle(ChatFormatting.WHITE));
+        // When the base is just the mob's type name, keep it as a translatable
+        // component: the client resolves it in its own language. Baking the
+        // server-resolved string leaks raw keys (entity.modid.mob) for mods whose
+        // language files are not loaded server-side. Also matches the raw
+        // descriptionId to self-heal mobs saved with a leaked key.
+        Component base;
+        if (baseName.equals(typeName) || baseName.equals(mob.getType().getDescriptionId())) {
+            base = Component.translatable(mob.getType().getDescriptionId()).withStyle(ChatFormatting.WHITE);
+        } else {
+            base = Component.literal(baseName).withStyle(ChatFormatting.WHITE);
+        }
+        Component newName = Component.literal(prefix).withStyle(color).append(base);
 
         String currentString = (currentName != null) ? currentName.getString() : "";
         if (!currentString.equals(newName.getString())) {
