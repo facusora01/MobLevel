@@ -14,7 +14,9 @@ import net.minecraftforge.network.simple.SimpleChannel;
 import net.minecraft.resources.ResourceLocation;
 
 public class ModMessages {
-    private static final String PROTOCOL_VERSION = "1";
+    // Bumped to 2: clients without LevelSyncPayload cannot join and get a clear
+    // version-mismatch screen instead of a mid-game packet error.
+    private static final String PROTOCOL_VERSION = "2";
     public static final SimpleChannel INSTANCE = net.minecraftforge.network.NetworkRegistry.newSimpleChannel(
             ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "messages"),
             () -> PROTOCOL_VERSION,
@@ -32,6 +34,22 @@ public class ModMessages {
                 (msg, ctx) -> handleTotemAnimation(msg, ctx.get()),
                 java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT)
         );
+        INSTANCE.registerMessage(
+                id(),
+                LevelSyncPayload.class,
+                (msg, buf) -> msg.toBytes(buf),
+                LevelSyncPayload::new,
+                (msg, ctx) -> handleLevelSync(msg, ctx.get()),
+                java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT)
+        );
+    }
+
+    private static void handleLevelSync(LevelSyncPayload payload, NetworkEvent.Context context) {
+        context.enqueueWork(() ->
+                DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
+                        ClientLevelCache.put(payload.entityId(), payload.level()))
+        );
+        context.setPacketHandled(true);
     }
 
     public static int id() {
