@@ -1,7 +1,9 @@
 package com.moblevel;
 
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -10,8 +12,10 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
 import net.minecraftforge.client.event.RenderNameTagEvent;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
 import net.minecraftforge.eventbus.api.Event;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -60,9 +64,25 @@ public class ClientRenderEvents {
         scopedMobId = (entityHit != null) ? entityHit.getEntity().getId() : -1;
     }
 
+    // The [LvN] label is drawn here from the synced level cache instead of living
+    // in the entity's CustomName, so vanilla naming/persistence stays untouched.
     @SubscribeEvent
     static void onRenderNameTag(RenderNameTagEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
+
+        Integer level = ClientLevelCache.get(mob.getId());
+        double distSq = Minecraft.getInstance().getEntityRenderDispatcher().distanceToSqr(mob);
+        double limitSq = mob.isDiscrete() ? RANGE_DISCRETE_SQ : RANGE_SQ;
+
+        if (level == null) {
+            // Not synced (vanilla-named mob, or packet not arrived yet): only trim range.
+            if (distSq > limitSq) {
+                event.setResult(Event.Result.DENY);
+            }
+            return;
+        }
+
+        event.setContent(buildLabel(mob, level));
 
         // Scoped target: force the label regardless of distance.
         if (scopedMobId != -1 && mob.getId() == scopedMobId) {
@@ -70,10 +90,40 @@ public class ClientRenderEvents {
             return;
         }
 
-        double distSq = Minecraft.getInstance().getEntityRenderDispatcher().distanceToSqr(mob);
-        double limitSq = mob.isDiscrete() ? RANGE_DISCRETE_SQ : RANGE_SQ;
-        if (distSq > limitSq) {
-            event.setResult(Event.Result.DENY);
+        // Same feel as the old CustomName behavior: label shows when the crosshair
+        // is on the mob within range. ALLOW is required because unnamed mobs never
+        // pass vanilla's shouldShowName check on their own.
+        boolean targeted = Minecraft.getInstance().crosshairPickEntity == mob;
+        event.setResult((targeted && distSq <= limitSq) ? Event.Result.ALLOW : Event.Result.DENY);
+    }
+
+    private static Component buildLabel(Mob mob, int level) {
+        ChatFormatting color = ChatFormatting.GREEN;
+        if (level >= 50) color = ChatFormatting.AQUA;
+        if (level >= 100) color = ChatFormatting.YELLOW;
+        if (level >= 130) color = ChatFormatting.RED;
+        if (level >= 150) color = ChatFormatting.DARK_PURPLE;
+
+        // A player-given name (name tag) is shown inside the label; otherwise the
+        // type name, resolved by this client in its own language.
+        Component base = mob.hasCustomName()
+            ? mob.getCustomName()
+            : mob.getType().getDescription();
+
+        return Component.literal("[Lv" + level + "] ").withStyle(color)
+            .append(base.copy().withStyle(ChatFormatting.WHITE));
+    }
+
+    // Keep the cache bounded: entries die with their entity and on disconnect.
+    @SubscribeEvent
+    static void onEntityLeave(EntityLeaveLevelEvent event) {
+        if (event.getLevel().isClientSide()) {
+            ClientLevelCache.remove(event.getEntity().getId());
         }
+    }
+
+    @SubscribeEvent
+    static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        ClientLevelCache.clear();
     }
 }

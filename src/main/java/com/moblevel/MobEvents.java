@@ -57,11 +57,6 @@ public class MobEvents {
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.
     static final String MIGRATION_MARKER = "ml_restart_done";
-    // Mob was persistent (or pre-named) before we touched it: never despawn it ourselves.
-    static final String PERSIST_TAG = "ml_persist";
-    // Player renamed this mob with a name tag: keep vanilla name-tag persistence.
-    static final String NAMED_TAG = "ml_named";
-    private static final double DESPAWN_DISTANCE_SQ = 128.0 * 128.0;
 
     // SRG name (f_32272_ = explosionRadius); resolved once, works in dev and in the
     // reobfuscated production jar where the mojmap name does not exist.
@@ -117,12 +112,6 @@ public class MobEvents {
             }
             mob.addTag("lvl:" + currentLevel);
             mob.addTag(VERSION_TAG);
-            // Captured before updateMobName: at this point hasCustomName() only reflects a
-            // pre-existing name (/summon CustomName) or the real PersistenceRequired flag.
-            // Our own level label must not stop natural despawning.
-            if (mob.isPersistenceRequired() || mob.isNoAi()) {
-                mob.addTag(PERSIST_TAG);
-            }
         } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
             // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
             // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
@@ -130,13 +119,27 @@ public class MobEvents {
             return;
         }
 
-        // Apply stats and name to all mobs with valid level (fresh spawn or /summon with tag)
+        // Apply stats to all mobs with valid level (fresh spawn or /summon with tag).
         applyLevelStats(mob, currentLevel, freshSpawn);
-        updateMobName(mob, currentLevel);
-        // Migrate old-world mobs saved with always-visible labels back to vanilla look-at.
-        if (mob.isCustomNameVisible()) {
-            mob.setCustomNameVisible(false);
-        }
+        // Levels used to be baked into CustomName; strip any legacy label so vanilla
+        // naming, persistence and despawn rules apply again. The label is now drawn
+        // client-side from data synced in onStartTracking.
+        stripLevelLabel(mob);
+    }
+
+    // Sends the mob's level to a player the moment their client starts tracking it.
+    // Fresh spawns are covered too: tracking always starts after EntityJoinLevelEvent.
+    @SubscribeEvent
+    static void onStartTracking(net.minecraftforge.event.entity.player.PlayerEvent.StartTracking event) {
+        if (!(event.getTarget() instanceof Mob mob)) return;
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+
+        int level = getLevelFromEntity(mob);
+        if (level <= 0) return;
+
+        ModMessages.INSTANCE.send(
+            PacketDistributor.PLAYER.with(() -> player),
+            new LevelSyncPayload(mob.getId(), level));
     }
 
     @SubscribeEvent
@@ -287,31 +290,6 @@ public class MobEvents {
         }
     }
 
-    // Re-apply the [LvN] prefix only when a player renames a leveled mob with a name tag.
-    // One deferred task for that single mob; no global per-tick scanning.
-    @SubscribeEvent
-    static void onNameTagUse(PlayerInteractEvent.EntityInteract event) {
-        if (event.getLevel().isClientSide()) return;
-        if (!(event.getTarget() instanceof Mob mob)) return;
-        if (!event.getItemStack().is(Items.NAME_TAG)) return;
-
-        int level = getLevelFromEntity(mob);
-        if (level <= 0) return;
-
-        // A real name tag grants vanilla persistence; keep honoring it.
-        mob.addTag(NAMED_TAG);
-
-        MinecraftServer server = mob.getServer();
-        if (server != null) {
-            // Defer one tick so vanilla applies the rename first, then we prepend the prefix.
-            server.tell(new TickTask(server.getTickCount() + 1, () -> {
-                if (mob.isAlive()) {
-                    updateMobName(mob, level);
-                }
-            }));
-        }
-    }
-
     @SubscribeEvent
     static void onEntityTick(LivingEvent.LivingTickEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
@@ -341,23 +319,8 @@ public class MobEvents {
                 4, mob.getBbWidth() * 0.5, mob.getBbHeight() * 0.4, mob.getBbWidth() * 0.5, 0.01);
         }
 
-        // Our level label counts as a custom name, which blocks vanilla despawning
-        // (isPersistenceRequired() includes hasCustomName()). Re-create the far-away despawn
-        // for mobs whose only persistence is our label, every 10 seconds.
-        // removeWhenFarAway is each entity's own vanilla despawn rule: monsters, ambient
-        // and water mobs return true, farm animals return false, so every type keeps
-        // its vanilla behavior instead of only covering the MONSTER category.
-        if (mob.tickCount % 200 == 0
-                && mob.hasCustomName()
-                && !mob.requiresCustomPersistence()
-                && !mob.getTags().contains(PERSIST_TAG)
-                && !mob.getTags().contains(NAMED_TAG)) {
-            Player nearest = mob.level().getNearestPlayer(mob, -1.0);
-            double distSqr = (nearest == null) ? Double.MAX_VALUE : nearest.distanceToSqr(mob);
-            if (distSqr > DESPAWN_DISTANCE_SQ && mob.removeWhenFarAway(distSqr)) {
-                mob.discard();
-            }
-        }
+        // No despawn workaround needed anymore: the level label no longer touches
+        // CustomName, so vanilla persistence and despawn rules apply untouched.
     }
 
     private static int calculateLevel(net.minecraft.util.RandomSource random) {
@@ -444,7 +407,10 @@ public class MobEvents {
         mob.addTag("lvl:" + level);
         mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
-        updateMobName(mob, level);
+        // Clients tracking this mob already cached the old level; push the new one.
+        ModMessages.INSTANCE.send(
+            PacketDistributor.TRACKING_ENTITY.with(() -> mob),
+            new LevelSyncPayload(mob.getId(), level));
     }
 
     private static boolean isMigrationEnabled(Mob mob) {
@@ -465,19 +431,7 @@ public class MobEvents {
         mob.removeTag("HasTotemNecklace");
         mob.removeTag(VERSION_TAG);
 
-        Component name = mob.getCustomName();
-        if (name != null && name.getString().startsWith("[Lv")) {
-            String raw = name.getString();
-            int end = raw.indexOf("] ");
-            String base = (end != -1) ? raw.substring(end + 2) : "";
-            // Keep a player-given nametag name; drop the name entirely if it was only ours.
-            if (base.isEmpty() || base.equals(mob.getType().getDescription().getString())) {
-                mob.setCustomName(null);
-            } else {
-                mob.setCustomName(Component.literal(base));
-            }
-            mob.setCustomNameVisible(false);
-        }
+        stripLevelLabel(mob);
 
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
@@ -512,48 +466,26 @@ public class MobEvents {
         }
     }
 
-    private static void updateMobName(Mob mob, int level) {
-        Component currentName = mob.getCustomName();
-        String typeName = mob.getType().getDescription().getString();
-        String rawName = (currentName != null) ? currentName.getString() : typeName;
+    // Removes a legacy "[LvN] " CustomName label from worlds saved by versions
+    // that baked the level into the entity name. Keeps a player-given name; drops
+    // the name entirely (and its unwanted persistence) when it was only ours.
+    // Also matches server-resolved type names and leaked raw translation keys.
+    static void stripLevelLabel(Mob mob) {
+        Component name = mob.getCustomName();
+        if (name == null || !name.getString().startsWith("[Lv")) return;
 
-        String baseName = rawName;
+        String raw = name.getString();
+        int end = raw.indexOf("] ");
+        String base = (end != -1) ? raw.substring(end + 2) : "";
 
-        if (rawName.startsWith("[Lv")) {
-            int endBracket = rawName.indexOf("] ");
-            if (endBracket != -1) {
-                baseName = rawName.substring(endBracket + 2);
-            }
-        }
-
-        if (baseName.contains(" ♥")) {
-            baseName = baseName.split(" ♥")[0];
-        }
-
-        ChatFormatting color = ChatFormatting.GREEN;
-        if (level >= 50) color = ChatFormatting.AQUA;
-        if (level >= 100) color = ChatFormatting.YELLOW;
-        if (level >= 130) color = ChatFormatting.RED;
-        if (level >= 150) color = ChatFormatting.DARK_PURPLE;
-
-        String prefix = "[Lv" + level + "] ";
-        // When the base is just the mob's type name, keep it as a translatable
-        // component: the client resolves it in its own language. Baking the
-        // server-resolved string leaks raw keys (entity.modid.mob) for mods whose
-        // language files are not loaded server-side. Also matches the raw
-        // descriptionId to self-heal mobs saved with a leaked key.
-        Component base;
-        if (baseName.equals(typeName) || baseName.equals(mob.getType().getDescriptionId())) {
-            base = Component.translatable(mob.getType().getDescriptionId()).withStyle(ChatFormatting.WHITE);
+        if (base.isEmpty()
+                || base.equals(mob.getType().getDescription().getString())
+                || base.equals(mob.getType().getDescriptionId())) {
+            mob.setCustomName(null);
         } else {
-            base = Component.literal(baseName).withStyle(ChatFormatting.WHITE);
+            mob.setCustomName(Component.literal(base));
         }
-        Component newName = Component.literal(prefix).withStyle(color).append(base);
-
-        String currentString = (currentName != null) ? currentName.getString() : "";
-        if (!currentString.equals(newName.getString())) {
-            mob.setCustomName(newName);
-        }
+        mob.setCustomNameVisible(false);
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
