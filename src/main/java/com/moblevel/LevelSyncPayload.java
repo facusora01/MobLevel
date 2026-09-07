@@ -1,17 +1,28 @@
 package com.moblevel;
 
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 
-// Server -> client: "entity <id> has level <level>". Sent when a player starts
-// tracking a leveled mob, and re-sent to trackers when a level is reassigned.
-public record LevelSyncPayload(int entityId, int level) {
+/**
+ * Server -> client: "entity {@code entityId} has level {@code level}". Sent when a player
+ * starts tracking a leveled mob, and re-sent to trackers when a level is reassigned.
+ */
+public record LevelSyncPayload(int entityId, int level) implements CustomPacketPayload {
 
-    public LevelSyncPayload(FriendlyByteBuf buf) {
-        this(buf.readVarInt(), buf.readVarInt());
-    }
+    public static final CustomPacketPayload.Type<LevelSyncPayload> TYPE =
+        new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_sync"));
 
-    public void toBytes(FriendlyByteBuf buf) {
-        buf.writeVarInt(entityId);
-        buf.writeVarInt(level);
+    public static final StreamCodec<RegistryFriendlyByteBuf, LevelSyncPayload> STREAM_CODEC =
+        StreamCodec.composite(
+            ByteBufCodecs.VAR_INT, LevelSyncPayload::entityId,
+            ByteBufCodecs.VAR_INT, LevelSyncPayload::level,
+            LevelSyncPayload::new);
+
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

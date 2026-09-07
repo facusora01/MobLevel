@@ -9,19 +9,19 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
-import net.minecraftforge.event.RegisterCommandsEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import java.util.function.Predicate;
 
-@Mod.EventBusSubscriber(modid = MobLevel.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = MobLevel.MODID)
 public class ModCommands {
 
     @SubscribeEvent
     static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
             Commands.literal("moblevel")
-                .requires(source -> source.hasPermission(2))
+                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                 .then(Commands.literal("uninstall")
                     .executes(ctx -> {
                         Config.UNINSTALL_MODE.set(true);
@@ -60,10 +60,10 @@ public class ModCommands {
                         }
                         scoreboard.addObjective(MobEvents.MIGRATION_MARKER, ObjectiveCriteria.DUMMY,
                             Component.literal("MobLevel migration marker"),
-                            ObjectiveCriteria.RenderType.INTEGER);
+                            ObjectiveCriteria.RenderType.INTEGER, false, null);
 
                         int total = forEachLoadedMob(ctx.getSource(), mob -> {
-                            if (!mob.getTags().contains(MobEvents.VERSION_TAG)) {
+                            if (!mob.entityTags().contains(MobEvents.VERSION_TAG)) {
                                 MobEvents.reassignLevel(mob);
                                 return true;
                             }

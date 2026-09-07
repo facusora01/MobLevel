@@ -6,12 +6,12 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.ModList;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.versions.mcp.MCPVersion;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.minecraft.SharedConstants;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -24,13 +24,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // if it is newer than the installed one, tells the player in chat with a
 // clickable download link. Runs once per game session, off the main thread,
 // and stays completely silent on any failure (offline, API change, timeout).
-@Mod.EventBusSubscriber(modid = MobLevel.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MobLevel.MODID, value = Dist.CLIENT)
 public class UpdateChecker {
     private static final String PROJECT_PAGE = "https://modrinth.com/mod/mob-level/versions";
     private static final String API_URL =
         "https://api.modrinth.com/v2/project/mob-level/version"
-        + "?loaders=%5B%22forge%22%5D"
-        + "&game_versions=%5B%22" + MCPVersion.getMCVersion() + "%22%5D";
+        + "?loaders=%5B%22neoforge%22%5D"
+        + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().name() + "%22%5D";
 
     private static final AtomicBoolean CHECKED = new AtomicBoolean(false);
 
@@ -80,9 +80,9 @@ public class UpdateChecker {
             .append(Component.literal("[Download]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, PROJECT_PAGE))));
+                .withClickEvent(new ClickEvent.OpenUrl(URI.create(PROJECT_PAGE)))));
 
-        player.displayClientMessage(message, false);
+        player.sendSystemMessage(message);
     }
 
     // Numeric compare of "a.b.c" cores; a stable release beats the same-numbered

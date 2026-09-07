@@ -1,16 +1,7 @@
 {
-  "itemGroup.moblevel": "Example Mod Tab",
-  "block.moblevel.example_block": "Example Block",
-  "item.moblevel.example_item": "Example Item",
+  "item.moblevel.totem_necklace": "Totem Necklace",
 
-  "moblevel.configuration.title": "Mob Level Configs",
-  "moblevel.configuration.section.moblevel.common.toml": "Mob Level Configs",
-  "moblevel.configuration.section.moblevel.common.toml.title": "Mob Level Configs",
-  "moblevel.configuration.items": "Item List",
-  "moblevel.configuration.logDirtBlock": "Log Dirt Block",
-  "moblevel.configuration.magicNumberIntroduction": "Magic Number Text",
-  "moblevel.configuration.magicNumber": "Magic Number",
+  "itemGroup.moblevel.mob_level_tab": "Mob Level Tab",
 
-  "creativeTab.moblevel.mob_level_tab": "Mob Level Tab",
-  "item.moblevel.totem_necklace": "Totem Necklace"
+  "moblevel.configuration.title": "MobLevel Config"
 }

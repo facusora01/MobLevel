@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '6.+'
+    id 'net.neoforged.moddev' version '2.0.146'
     id 'idea'
 }
 
@@ -12,82 +12,77 @@ tasks.named('wrapper', Wrapper).configure {
 version = mod_version
 group = mod_group_id
 
-repositories {
-    mavenCentral()
-    maven { url 'https://maven.minecraftforge.net' }
-}
-
 base {
     archivesName = "${mod_id}-${minecraft_version}"
 }
 
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
-minecraft {
-    mappings channel: mapping_channel, version: mapping_version
+neoForge {
+    version = project.neo_version
 
-    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
+    parchment {
+        // Optional community mappings; left unset so the build only needs official mappings.
+    }
+
+    // Validate AT files and raise errors when they have invalid targets
+    validateAccessTransformers = true
 
     runs {
         client {
-            workingDirectory project.file('run')
-            ideaModule "${project.name}.main"
-            args '--username=Developer'
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                moblevel {
-                    source sourceSets.main
-                }
-            }
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            gameDirectory = project.file('run')
+            programArgument '--username=Developer'
         }
 
         server {
-            workingDirectory project.file('run')
-            ideaModule "${project.name}.main"
-            args '--nogui'
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                moblevel {
-                    source sourceSets.main
-                }
-            }
+            server()
+            systemProperty 'neoforge.enabledGameTestNamespaces', mod_id
+            gameDirectory = project.file('run')
+            programArgument '--nogui'
         }
 
         data {
-            workingDirectory project.file('run')
-            ideaModule "${project.name}.main"
-            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                moblevel {
-                    source sourceSets.main
-                }
-            }
+            clientData()
+            gameDirectory = project.file('run-data')
+            programArguments.addAll '--mod', mod_id, '--all',
+                    '--output', file('src/generated/resources/').getAbsolutePath(),
+                    '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+
+        configureEach {
+            logLevel = org.slf4j.event.Level.DEBUG
+        }
+    }
+
+    mods {
+        "$mod_id" {
+            sourceSet sourceSets.main
         }
     }
 }
 
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
-dependencies {
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+repositories {
+    mavenCentral()
+}
 
+dependencies {
     testImplementation 'junit:junit:4.13.2'
-    testImplementation 'org.mockito:mockito-core:5.2.0'
-    testImplementation 'org.mockito:mockito-inline:5.2.0'
-    testImplementation 'ch.qos.logback:logback-classic:1.4.11'
-    testImplementation 'org.slf4j:slf4j-api:2.0.9'
+    testImplementation 'org.mockito:mockito-core:5.20.0'
+    testImplementation 'ch.qos.logback:logback-classic:1.5.18'
+    testImplementation 'org.slf4j:slf4j-api:2.0.17'
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
     var replaceProperties = [
             minecraft_version      : minecraft_version,
             minecraft_version_range: minecraft_version_range,
-            forge_version          : forge_version,
-            forge_version_range    : forge_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
@@ -102,6 +97,7 @@ var generateModMetadata = tasks.register("generateModMetadata", ProcessResources
 }
 
 sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
 
 publishing {
     publications {
@@ -111,7 +107,7 @@ publishing {
     }
     repositories {
         maven {
-            url "file://${project.projectDir}/repo"
+            url = "file://${project.projectDir}/repo"
         }
     }
 }

@@ -1,39 +1,26 @@
 package com.moblevel;
 
-import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
 
-public class TotemAnimationPayload {
-    private final int entityId;
-    private final ItemStack stack;
+/** Tells clients to play the totem save animation for the entity that was rescued. */
+public record TotemAnimationPayload(int entityId, ItemStack stack) implements CustomPacketPayload {
 
-    public TotemAnimationPayload(int entityId, ItemStack stack) {
-        this.entityId = entityId;
-        this.stack = stack;
-    }
+    public static final CustomPacketPayload.Type<TotemAnimationPayload> TYPE =
+        new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(MobLevel.MODID, "totem_animation"));
 
-    public TotemAnimationPayload(FriendlyByteBuf buf) {
-        this.entityId = buf.readInt();
-        this.stack = buf.readItem();
-    }
+    public static final StreamCodec<RegistryFriendlyByteBuf, TotemAnimationPayload> STREAM_CODEC =
+        StreamCodec.composite(
+            ByteBufCodecs.VAR_INT, TotemAnimationPayload::entityId,
+            ItemStack.OPTIONAL_STREAM_CODEC, TotemAnimationPayload::stack,
+            TotemAnimationPayload::new);
 
-    public void toBytes(FriendlyByteBuf buf) {
-        buf.writeInt(this.entityId);
-        buf.writeItem(this.stack);
-    }
-
-    public int entityId() {
-        return entityId;
-    }
-
-    public ItemStack stack() {
-        return stack;
-    }
-
-    public boolean handle(NetworkEvent.Context context) {
-        context.enqueueWork(() -> {
-        });
-        return true;
+    @Override
+    public CustomPacketPayload.Type<? extends CustomPacketPayload> type() {
+        return TYPE;
     }
 }

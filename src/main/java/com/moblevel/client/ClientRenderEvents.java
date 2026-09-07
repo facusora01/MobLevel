@@ -1,9 +1,13 @@
-package com.moblevel;
+package com.moblevel.client;
+
+import com.moblevel.ClientLevelCache;
+import com.moblevel.MobLevel;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.TriState;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -11,16 +15,15 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
-import net.minecraftforge.client.event.RenderNameTagEvent;
-import net.minecraftforge.event.TickEvent;
-import net.minecraftforge.event.entity.EntityLeaveLevelEvent;
-import net.minecraftforge.eventbus.api.Event;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RenderNameTagEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
 
-@Mod.EventBusSubscriber(modid = MobLevel.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
+@EventBusSubscriber(modid = MobLevel.MODID, value = Dist.CLIENT)
 public class ClientRenderEvents {
     // Vanilla shows mob nameplates up to 64 blocks (32 sneaking); trimmed by 25%.
     private static final double RANGE_SQ = 48.0 * 48.0;
@@ -32,9 +35,7 @@ public class ClientRenderEvents {
     private static int scopedMobId = -1;
 
     @SubscribeEvent
-    static void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END) return;
-
+    static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (player == null || minecraft.level == null || !player.isScoping()) {
@@ -67,7 +68,7 @@ public class ClientRenderEvents {
     // The [LvN] label is drawn here from the synced level cache instead of living
     // in the entity's CustomName, so vanilla naming/persistence stays untouched.
     @SubscribeEvent
-    static void onRenderNameTag(RenderNameTagEvent event) {
+    static void onRenderNameTag(RenderNameTagEvent.CanRender event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
 
         Integer level = ClientLevelCache.get(mob.getId());
@@ -77,7 +78,7 @@ public class ClientRenderEvents {
         if (level == null) {
             // Not synced (vanilla-named mob, or packet not arrived yet): only trim range.
             if (distSq > limitSq) {
-                event.setResult(Event.Result.DENY);
+                event.setCanRender(TriState.FALSE);
             }
             return;
         }
@@ -86,15 +87,15 @@ public class ClientRenderEvents {
 
         // Scoped target: force the label regardless of distance.
         if (scopedMobId != -1 && mob.getId() == scopedMobId) {
-            event.setResult(Event.Result.ALLOW);
+            event.setCanRender(TriState.TRUE);
             return;
         }
 
         // Same feel as the old CustomName behavior: label shows when the crosshair
-        // is on the mob within range. ALLOW is required because unnamed mobs never
+        // is on the mob within range. TRUE is required because unnamed mobs never
         // pass vanilla's shouldShowName check on their own.
         boolean targeted = Minecraft.getInstance().crosshairPickEntity == mob;
-        event.setResult((targeted && distSq <= limitSq) ? Event.Result.ALLOW : Event.Result.DENY);
+        event.setCanRender((targeted && distSq <= limitSq) ? TriState.TRUE : TriState.FALSE);
     }
 
     private static Component buildLabel(Mob mob, int level) {

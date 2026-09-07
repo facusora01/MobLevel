@@ -18,60 +18,51 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.Zombie;
-import net.minecraft.world.entity.monster.AbstractSkeleton;
+import net.minecraft.world.entity.monster.zombie.Zombie;
+import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingDropsEvent;
-import net.minecraftforge.event.entity.living.LivingEvent;
-import net.minecraftforge.event.entity.EntityJoinLevelEvent;
-import net.minecraftforge.event.entity.living.LivingDeathEvent;
-import net.minecraftforge.event.entity.living.LivingExperienceDropEvent;
-import net.minecraftforge.event.entity.living.BabyEntitySpawnEvent;
-import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
+import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
+import net.neoforged.neoforge.event.tick.EntityTickEvent;
+import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
+import net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent;
+import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.TickTask;
 import net.minecraft.world.item.Items;
-import net.minecraftforge.fml.common.Mod;
-import net.minecraftforge.network.PacketDistributor;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.network.PacketDistributor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
-import java.lang.reflect.Field;
 
-@Mod.EventBusSubscriber(modid = MobLevel.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE)
+@EventBusSubscriber(modid = MobLevel.MODID)
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
-    private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
+    private static final Identifier SPEED_BOOST_ID =
+        Identifier.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.
     static final String MIGRATION_MARKER = "ml_restart_done";
+    // Set by onBabySpawn on a child that already carries its level tag, so onEntityJoinLevel
+    // still treats it as a fresh spawn and heals it up to its scaled maximum. Consumed on join,
+    // so it never survives into the save file.
+    static final String NEWBORN_TAG = "ml_newborn";
 
-    // SRG name (f_32272_ = explosionRadius); resolved once, works in dev and in the
-    // reobfuscated production jar where the mojmap name does not exist.
-    private static final Field CREEPER_EXPLOSION_RADIUS = findCreeperRadiusField();
-
-    private static Field findCreeperRadiusField() {
-        try {
-            return ObfuscationReflectionHelper.findField(Creeper.class, "f_32272_");
-        } catch (Throwable t) {
-            LOGGER.warn("Creeper explosionRadius field not found; creeper scaling disabled: {}", t.getMessage());
-            return null;
-        }
-    }
     private static final DustParticleOptions PARTICLE =
-        new DustParticleOptions(new org.joml.Vector3f(0.6f, 0.0f, 1.0f), 0.7f);
+        new DustParticleOptions(0x9900FF, 0.7f);
 
     @SubscribeEvent
     static void onEntityJoinLevel(EntityJoinLevelEvent event) {
@@ -89,9 +80,9 @@ public class MobEvents {
         boolean freshSpawn = true;
 
         // LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
-        //     mob.getType().getDescription().getString(), mob.getTags());
+        //     mob.getType().getDescription().getString(), mob.entityTags());
 
-        for (String tag : mob.getTags()) {
+        for (String tag : mob.entityTags()) {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
@@ -103,6 +94,15 @@ public class MobEvents {
             }
         }
 
+        // A mob bred this tick already carries its level tag but has vanilla health,
+        // so it needs the fresh-spawn treatment to be healed to its scaled maximum.
+        if (mob.entityTags().contains(NEWBORN_TAG)) {
+            mob.removeTag(NEWBORN_TAG);
+            // Bred by this version, so the one-time migration must never re-roll it.
+            mob.addTag(VERSION_TAG);
+            freshSpawn = true;
+        }
+
         if (currentLevel == 0) {
             currentLevel = calculateLevel(mob.getRandom());
             if (BossMobUtil.isBossMob(mob)) {
@@ -112,7 +112,7 @@ public class MobEvents {
             }
             mob.addTag("lvl:" + currentLevel);
             mob.addTag(VERSION_TAG);
-        } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
+        } else if (!mob.entityTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
             // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
             // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
             reassignLevel(mob);
@@ -130,16 +130,14 @@ public class MobEvents {
     // Sends the mob's level to a player the moment their client starts tracking it.
     // Fresh spawns are covered too: tracking always starts after EntityJoinLevelEvent.
     @SubscribeEvent
-    static void onStartTracking(net.minecraftforge.event.entity.player.PlayerEvent.StartTracking event) {
+    static void onStartTracking(net.neoforged.neoforge.event.entity.player.PlayerEvent.StartTracking event) {
         if (!(event.getTarget() instanceof Mob mob)) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
 
         int level = getLevelFromEntity(mob);
         if (level <= 0) return;
 
-        ModMessages.INSTANCE.send(
-            PacketDistributor.PLAYER.with(() -> player),
-            new LevelSyncPayload(mob.getId(), level));
+        ModMessages.sendToPlayer(player, new LevelSyncPayload(mob.getId(), level));
     }
 
     @SubscribeEvent
@@ -150,9 +148,9 @@ public class MobEvents {
         if (child.level().isClientSide()) return;
 
         int levelA = (event.getParentA() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentA().getTags()) : 0;
+            ? DropsCalculator.getLevelFromTags(event.getParentA().entityTags()) : 0;
         int levelB = (event.getParentB() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentB().getTags()) : 0;
+            ? DropsCalculator.getLevelFromTags(event.getParentB().entityTags()) : 0;
 
         int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
         int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
@@ -163,17 +161,18 @@ public class MobEvents {
 
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
+        child.addTag(NEWBORN_TAG);
 
         // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
     }
 
     @SubscribeEvent
-    static void onDamageCalculation(LivingDamageEvent event) {
+    static void onDamageCalculation(LivingDamageEvent.Pre event) {
         if (event.getSource().getEntity() instanceof Mob attacker) {
             int level = getLevelFromEntity(attacker);
             if (level > 0) {
                 float multiplier = DropsCalculator.getDamageMultiplier(level);
-                event.setAmount(event.getAmount() * multiplier);
+                event.setNewDamage(event.getNewDamage() * multiplier);
             }
         }
     }
@@ -247,7 +246,7 @@ public class MobEvents {
         ItemStack mainHand = entity.getMainHandItem();
         ItemStack offHand = entity.getOffhandItem();
 
-        boolean hasTotemTag = entity.getTags().contains("HasTotemNecklace");
+        boolean hasTotemTag = entity.entityTags().contains("HasTotemNecklace");
         boolean hasTotemItem = false;
         try {
             hasTotemItem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
@@ -283,15 +282,15 @@ public class MobEvents {
             TotemAnimationPayload payload = new TotemAnimationPayload(entity.getId(), visualStack);
 
             if (entity instanceof ServerPlayer serverPlayer) {
-                ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer), payload);
+                ModMessages.sendToPlayer(serverPlayer, payload);
             }
 
-            ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), payload);
+            ModMessages.sendToTracking(entity, payload);
         }
     }
 
     @SubscribeEvent
-    static void onEntityTick(LivingEvent.LivingTickEvent event) {
+    static void onEntityTick(EntityTickEvent.Post event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
         // Do nothing on the client: names are synced automatically, particles are server-driven.
         if (mob.level().isClientSide()) return;
@@ -301,7 +300,7 @@ public class MobEvents {
         // selective first: the 1-in-thousands level check runs before the heightmap lookup
         // in canSeeSky, so a horde of ordinary burning zombies costs almost nothing extra.
         if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
-                && mob.level().isDay()
+                && mob.level().isBrightOutside()
                 && getLevelFromEntity(mob) >= 150
                 && mob.level().canSeeSky(mob.blockPosition())) {
             mob.clearFire();
@@ -346,24 +345,20 @@ public class MobEvents {
             }
         }
 
-        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
+        if (mob instanceof Creeper creeper) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
             if (newRadius > 12) newRadius = 12;
 
-            try {
-                CREEPER_EXPLOSION_RADIUS.setInt(creeper, newRadius);
-            } catch (Exception e) {
-                LOGGER.warn("Failed to modify Creeper explosion radius: {}", e.getMessage());
-            }
+            creeper.explosionRadius = newRadius;
         }
 
         if (level >= 150) {
             // Move 1.5x faster. Transient modifier so it doesn't compound across world reloads.
             AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-            if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) == null) {
+            if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_ID) == null) {
                 moveSpeed.addTransientModifier(new AttributeModifier(
-                    SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.MULTIPLY_TOTAL));
+                    SPEED_BOOST_ID, 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
 
             // Aggressive toward players, regardless of mob type (cows included).
@@ -393,7 +388,7 @@ public class MobEvents {
     // Wipes the mob's old level and rolls a fresh one with the current spawn curve.
     // Used by /moblevel restartLevels to fix worlds bloated by pre-1.2.1 levels.
     static void reassignLevel(Mob mob) {
-        int oldLevel = DropsCalculator.getLevelFromTags(mob.getTags());
+        int oldLevel = DropsCalculator.getLevelFromTags(mob.entityTags());
         stripModData(mob);
         int level = calculateLevel(mob.getRandom());
         if (BossMobUtil.isBossMob(mob)) {
@@ -408,20 +403,18 @@ public class MobEvents {
         mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
         // Clients tracking this mob already cached the old level; push the new one.
-        ModMessages.INSTANCE.send(
-            PacketDistributor.TRACKING_ENTITY.with(() -> mob),
-            new LevelSyncPayload(mob.getId(), level));
+        ModMessages.sendToTracking(mob, new LevelSyncPayload(mob.getId(), level));
     }
 
     private static boolean isMigrationEnabled(Mob mob) {
-        return mob.getServer() != null
-            && mob.getServer().getScoreboard().getObjective(MIGRATION_MARKER) != null;
+        MinecraftServer server = mob.level().getServer();
+        return server != null && server.getScoreboard().getObjective(MIGRATION_MARKER) != null;
     }
 
     // Reverts everything MobLevel persisted on this entity back to vanilla.
     static void stripModData(Mob mob) {
         String lvlTag = null;
-        for (String tag : mob.getTags()) {
+        for (String tag : mob.entityTags()) {
             if (tag.startsWith("lvl:")) {
                 lvlTag = tag;
                 break;
@@ -430,6 +423,7 @@ public class MobEvents {
         if (lvlTag != null) mob.removeTag(lvlTag);
         mob.removeTag("HasTotemNecklace");
         mob.removeTag(VERSION_TAG);
+        mob.removeTag(NEWBORN_TAG);
 
         stripLevelLabel(mob);
 
@@ -442,15 +436,12 @@ public class MobEvents {
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) != null) {
-            moveSpeed.removeModifier(SPEED_BOOST_UUID);
+        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_ID) != null) {
+            moveSpeed.removeModifier(SPEED_BOOST_ID);
         }
 
-        if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
-            try {
-                CREEPER_EXPLOSION_RADIUS.setInt(creeper, 3);
-            } catch (Exception ignored) {
-            }
+        if (mob instanceof Creeper creeper) {
+            creeper.explosionRadius = 3;
         }
     }
 
@@ -489,6 +480,6 @@ public class MobEvents {
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
-        return DropsCalculator.getLevelFromTags(entity.getTags());
+        return DropsCalculator.getLevelFromTags(entity.entityTags());
     }
 }

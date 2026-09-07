@@ -16,7 +16,7 @@ public class BossMobUtil {
         return clampLevel(baseLevel, Config.BOSS_MIN_LEVEL.get(), Config.BOSS_MAX_LEVEL.get());
     }
 
-    /** Pure clamp logic, testable without ForgeConfigSpec. */
+    /** Pure clamp logic, testable without ModConfigSpec. */
     public static int clampLevel(int baseLevel, int minLevel, int maxLevel) {
         if (baseLevel < minLevel) return minLevel;
         if (baseLevel > maxLevel) return maxLevel;
