@@ -16,6 +16,10 @@ execute if score @s ml_hp matches ..0 run scoreboard players set @s ml_hp 1
 execute store result storage moblevel:v hp int 1 run scoreboard players get @s ml_hp
 function moblevel:set_health with storage moblevel:v
 
+# Scaled attack damage, for the mobs that have the attribute at all
+execute unless entity @s[tag=ml_dmgset] run function moblevel:capture_damage
+execute if score @s ml_basedmg matches 1.. run function moblevel:scale_damage
+
 # Colored name (CustomNameVisible left false -> shows only when looked at)
 function moblevel:set_name
 
