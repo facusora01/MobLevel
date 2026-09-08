@@ -10,13 +10,26 @@ public class Config {
     public static final ModConfigSpec.DoubleValue HIGH_LEVEL_CHANCE = BUILDER
             .comment("Chance (0.0 to 1.0) that a mob spawns ABOVE level 20.",
                     "0.065 = 6.5%. The rest spawn in the common band 1-20.",
-                    "With exponent 1.5 this yields: exact level 50 ~0.055%, level 150 ~0.03%.")
+                    "Percentages below are CUMULATIVE (share of all spawns at or above a level),",
+                    "which is what you actually meet in game. With exponent 5.0 this yields:",
+                    "50+ ~1.69%, 100+ ~0.61% (one in 164), 130+ ~0.22%, exactly 150 ~0.010%.")
             .defineInRange("highLevelChance", 0.065, 0.0, 1.0);
 
     public static final ModConfigSpec.DoubleValue LEVEL_RARITY_EXPONENT = BUILDER
             .comment("Rarity curve exponent within the high band (21-150). Higher = high levels rarer.",
-                    "1.5 = gentle decay (many 21-40, few 100+).")
-            .defineInRange("levelRarityExponent", 1.5, 1.0, 10.0);
+                    "Raise this to thin out the top of the band without changing how many mobs",
+                    "enter it at all. Cumulative share of all spawns at level 100 or above:",
+                    "1.5 -> 1.84% (one in 54), 3.0 -> 0.99%, 5.0 -> 0.61%, 10.0 -> 0.31%.",
+                    "Passive animals never despawn, so every high-level one ever spawned stays",
+                    "in the world; a gentle curve accumulates them over hours of exploring.")
+            .defineInRange("levelRarityExponent", 5.0, 1.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue COMMON_LEVEL_SKEW = BUILDER
+            .comment("Shape of the common band (1-20). 1.0 = flat, 5% per level. Below 1.0 nudges",
+                    "the band upward so the flimsiest mobs get rarer, without ever exceeding 20.",
+                    "Share of common-band mobs landing on level 1, and on levels 1-5:",
+                    "1.00 -> 5.0% and 25.0% | 0.75 -> 1.8% and 15.7% | 0.50 -> 0.3% and 6.3%.")
+            .defineInRange("commonLevelSkew", 0.75, 0.25, 1.0);
 
     public static final ModConfigSpec.IntValue MAX_LEVEL = BUILDER
             .defineInRange("maxLevel", 150, 1, 1000);

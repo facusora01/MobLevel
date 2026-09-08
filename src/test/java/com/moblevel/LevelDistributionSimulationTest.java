@@ -12,7 +12,8 @@ public class LevelDistributionSimulationTest {
 
     // Mirror of Config defaults (Config needs Forge to load, so constants are duplicated here).
     private static final double HIGH_CHANCE = 0.065;
-    private static final double EXPONENT = 1.5;
+    private static final double EXPONENT = 5.0;
+    private static final double COMMON_SKEW = 0.75;
     private static final int MAX = 150;
 
     @Test
@@ -38,7 +39,7 @@ public class LevelDistributionSimulationTest {
         int[] counts = new int[MAX + 1];
         for (int i = 0; i < n; i++) {
             int level = LevelCalculator.rollSpawnLevel(
-                random.nextDouble(), random.nextDouble(), HIGH_CHANCE, EXPONENT, MAX);
+                random.nextDouble(), random.nextDouble(), HIGH_CHANCE, EXPONENT, COMMON_SKEW, MAX);
             counts[level]++;
         }
         return counts;

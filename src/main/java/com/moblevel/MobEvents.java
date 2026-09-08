@@ -328,6 +328,7 @@ public class MobEvents {
             random.nextDouble(),
             Config.HIGH_LEVEL_CHANCE.get(),
             Config.LEVEL_RARITY_EXPONENT.get(),
+            Config.COMMON_LEVEL_SKEW.get(),
             Config.MAX_LEVEL.get());
     }
 
