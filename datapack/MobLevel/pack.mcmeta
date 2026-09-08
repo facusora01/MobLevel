@@ -1,29 +1,79 @@
 {
   "pack": {
-    "description": "MobLevel - every mob has a level scaling health, drops and danger",
+    "description": [
+      {
+        "text": "MobLevel",
+        "color": "gold",
+        "bold": true
+      },
+      {
+        "text": " - every mob has a level scaling health, drops and danger\n",
+        "color": "gray"
+      },
+      {
+        "text": "Datapack edition: no totem, no creeper scaling, flat kill reward. The mod has all three.",
+        "color": "red"
+      }
+    ],
     "pack_format": 57,
-    "supported_formats": { "min_inclusive": 18, "max_inclusive": 999 },
-    "min_format": [18, 0],
-    "max_format": [999, 0]
+    "supported_formats": {
+      "min_inclusive": 18,
+      "max_inclusive": 999
+    },
+    "min_format": [
+      18,
+      0
+    ],
+    "max_format": [
+      999,
+      0
+    ]
   },
   "overlays": {
     "entries": [
       {
-        "formats": { "min_inclusive": 18, "max_inclusive": 41 },
-        "min_format": [18, 0],
-        "max_format": [41, 0],
+        "formats": {
+          "min_inclusive": 18,
+          "max_inclusive": 41
+        },
+        "min_format": [
+          18,
+          0
+        ],
+        "max_format": [
+          41,
+          0
+        ],
         "directory": "overlay_legacy"
       },
       {
-        "formats": { "min_inclusive": 42, "max_inclusive": 56 },
-        "min_format": [42, 0],
-        "max_format": [56, 0],
+        "formats": {
+          "min_inclusive": 42,
+          "max_inclusive": 56
+        },
+        "min_format": [
+          42,
+          0
+        ],
+        "max_format": [
+          56,
+          0
+        ],
         "directory": "overlay_generic"
       },
       {
-        "formats": { "min_inclusive": 82, "max_inclusive": 999 },
-        "min_format": [82, 0],
-        "max_format": [999, 0],
+        "formats": {
+          "min_inclusive": 82,
+          "max_inclusive": 999
+        },
+        "min_format": [
+          82,
+          0
+        ],
+        "max_format": [
+          999,
+          0
+        ],
         "directory": "overlay_26"
       }
     ]
