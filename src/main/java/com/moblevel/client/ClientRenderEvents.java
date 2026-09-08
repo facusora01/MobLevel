@@ -7,7 +7,7 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.TriState;
+import net.neoforged.neoforge.common.util.TriState;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
@@ -68,7 +68,7 @@ public class ClientRenderEvents {
     // The [LvN] label is drawn here from the synced level cache instead of living
     // in the entity's CustomName, so vanilla naming/persistence stays untouched.
     @SubscribeEvent
-    static void onRenderNameTag(RenderNameTagEvent.CanRender event) {
+    static void onRenderNameTag(RenderNameTagEvent event) {
         if (!(event.getEntity() instanceof Mob mob)) return;
 
         Integer level = ClientLevelCache.get(mob.getId());

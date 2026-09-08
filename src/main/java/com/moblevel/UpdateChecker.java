@@ -30,7 +30,7 @@ public class UpdateChecker {
     private static final String API_URL =
         "https://api.modrinth.com/v2/project/mob-level/version"
         + "?loaders=%5B%22neoforge%22%5D"
-        + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().name() + "%22%5D";
+        + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().getName() + "%22%5D";
 
     private static final AtomicBoolean CHECKED = new AtomicBoolean(false);
 
@@ -80,7 +80,7 @@ public class UpdateChecker {
             .append(Component.literal("[Download]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(PROJECT_PAGE)))));
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, PROJECT_PAGE))));
 
         player.displayClientMessage(message, false);
     }
