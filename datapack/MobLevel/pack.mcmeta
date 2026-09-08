@@ -1,7 +1,31 @@
 {
   "pack": {
     "description": "MobLevel - every mob has a level scaling health, drops and danger",
-    "pack_format": 61,
-    "supported_formats": { "min_inclusive": 57, "max_inclusive": 9999 }
+    "pack_format": 57,
+    "supported_formats": { "min_inclusive": 18, "max_inclusive": 999 },
+    "min_format": [18, 0],
+    "max_format": [999, 0]
+  },
+  "overlays": {
+    "entries": [
+      {
+        "formats": { "min_inclusive": 18, "max_inclusive": 41 },
+        "min_format": [18, 0],
+        "max_format": [41, 0],
+        "directory": "overlay_legacy"
+      },
+      {
+        "formats": { "min_inclusive": 42, "max_inclusive": 56 },
+        "min_format": [42, 0],
+        "max_format": [56, 0],
+        "directory": "overlay_generic"
+      },
+      {
+        "formats": { "min_inclusive": 82, "max_inclusive": 999 },
+        "min_format": [82, 0],
+        "max_format": [999, 0],
+        "directory": "overlay_26"
+      }
+    ]
   }
 }

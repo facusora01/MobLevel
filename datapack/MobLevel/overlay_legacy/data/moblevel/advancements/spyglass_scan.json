@@ -1,0 +1,11 @@
+{
+  "criteria": {
+    "scoping": {
+      "trigger": "minecraft:using_item",
+      "conditions": {
+        "item": { "items": ["minecraft:spyglass"] }
+      }
+    }
+  },
+  "rewards": { "function": "moblevel:scan_start" }
+}
