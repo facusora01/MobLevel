@@ -57,6 +57,10 @@ public class MobEvents {
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.
     static final String MIGRATION_MARKER = "ml_restart_done";
+    // Set by onBabySpawn on a child that already carries its level tag, so onEntityJoinLevel
+    // still treats it as a fresh spawn and heals it up to its scaled maximum. Consumed on join,
+    // so it never survives into the save file.
+    static final String NEWBORN_TAG = "ml_newborn";
 
     // SRG name (f_32272_ = explosionRadius); resolved once, works in dev and in the
     // reobfuscated production jar where the mojmap name does not exist.
@@ -101,6 +105,15 @@ public class MobEvents {
                 }
                 break;
             }
+        }
+
+        // A mob bred this tick already carries its level tag but has vanilla health,
+        // so it needs the fresh-spawn treatment to be healed to its scaled maximum.
+        if (mob.getTags().contains(NEWBORN_TAG)) {
+            mob.removeTag(NEWBORN_TAG);
+            // Bred by this version, so the one-time migration must never re-roll it.
+            mob.addTag(VERSION_TAG);
+            freshSpawn = true;
         }
 
         if (currentLevel == 0) {
@@ -163,6 +176,7 @@ public class MobEvents {
 
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
+        child.addTag(NEWBORN_TAG);
 
         // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
     }
@@ -430,6 +444,7 @@ public class MobEvents {
         if (lvlTag != null) mob.removeTag(lvlTag);
         mob.removeTag("HasTotemNecklace");
         mob.removeTag(VERSION_TAG);
+        mob.removeTag(NEWBORN_TAG);
 
         stripLevelLabel(mob);
 
