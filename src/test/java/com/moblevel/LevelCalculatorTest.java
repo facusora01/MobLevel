@@ -58,6 +58,36 @@ public class LevelCalculatorTest {
     }
 
     @Test
+    public void testCommonSkewLiftsMidRoll() {
+        // Flat: 0.5 -> 1 + 10 = 11. Skewed 0.75: 0.5^0.75 = 0.5946 -> 1 + 11 = 12.
+        assertEquals(11, LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, 1.0, MAX));
+        assertEquals(12, LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, 0.75, MAX));
+    }
+
+    @Test
+    public void testCommonSkewKeepsBandBounds() {
+        // The skew must never push a common-band roll outside 1-20.
+        assertEquals(1, LevelCalculator.rollSpawnLevel(0.5, 0.0, HIGH_CHANCE, EXPONENT, 0.75, MAX));
+        assertEquals(20, LevelCalculator.rollSpawnLevel(0.5, 0.999, HIGH_CHANCE, EXPONENT, 0.75, MAX));
+    }
+
+    @Test
+    public void testCommonSkewDoesNotTouchHighBand() {
+        // Same high-band result with and without the common skew.
+        assertEquals(
+            LevelCalculator.rollSpawnLevel(0.01, 0.5, HIGH_CHANCE, EXPONENT, 1.0, MAX),
+            LevelCalculator.rollSpawnLevel(0.01, 0.5, HIGH_CHANCE, EXPONENT, 0.5, MAX));
+    }
+
+    @Test
+    public void testDefaultOverloadStaysFlat() {
+        // The 5-arg overload must keep the old uniform behaviour.
+        assertEquals(
+            LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, MAX),
+            LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, 1.0, MAX));
+    }
+
+    @Test
     public void testZeroHighChanceAlwaysCommon() {
         // highChance 0 -> bandRoll 0.0 is not < 0 -> always common
         int level = LevelCalculator.rollSpawnLevel(0.0, 0.5, 0.0, EXPONENT, MAX);
