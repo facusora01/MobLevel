@@ -7,7 +7,9 @@ public class BreedingCalculator {
     public static final int MUTATION_MIN_BONUS = 3;
     public static final int MUTATION_MAX_BONUS = 8;
 
-    // Child level = average of parents, with a low chance of a mutation that raises it.
+    // Child level = average of parents rounded DOWN, with a low chance of a mutation that
+    // raises it. Flooring keeps breeding from ratcheting a line upwards: 149 + 150 gives
+    // 149, so only a mutation can ever push a bloodline past its parents.
     public static int calculateChildLevel(int parentA, int parentB, double mutationRoll,
                                           double mutationChance, int mutationBonus, int maxLevel) {
         int validA = Math.max(0, parentA);
@@ -21,7 +23,7 @@ public class BreedingCalculator {
         } else if (validB == 0) {
             base = validA;
         } else {
-            base = Math.round((validA + validB) / 2.0f);
+            base = (validA + validB) / 2;
         }
 
         if (mutationRoll < mutationChance) {

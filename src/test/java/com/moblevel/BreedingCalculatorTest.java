@@ -17,9 +17,15 @@ public class BreedingCalculatorTest {
     }
 
     @Test
-    public void testAverageRoundsToNearest() {
-        // (30 + 51) / 2 = 40.5 -> 41
-        assertEquals(41, BreedingCalculator.calculateChildLevel(30, 51, NO_MUTATION, CHANCE, 5, MAX));
+    public void testAverageRoundsDown() {
+        // (30 + 51) / 2 = 40.5 -> 40
+        assertEquals(40, BreedingCalculator.calculateChildLevel(30, 51, NO_MUTATION, CHANCE, 5, MAX));
+    }
+
+    @Test
+    public void testTopLevelParentsNeverRoundUp() {
+        // (149 + 150) / 2 = 149.5 -> 149, so the pair cannot breed its way to 150.
+        assertEquals(149, BreedingCalculator.calculateChildLevel(149, 150, NO_MUTATION, CHANCE, 5, MAX));
     }
 
     @Test
