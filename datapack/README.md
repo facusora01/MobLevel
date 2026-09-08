@@ -15,10 +15,11 @@ approximates it. If you want the full thing, use the mod.
 
 | | mod | datapack | why |
 |---|---|---|---|
-| Level, health scaling, breeding | full | full | — |
+| Level, health scaling, damage scaling, breeding | full | full | — |
 | **Totem death-save** | yes | **missing** | a datapack cannot cancel a death |
 | **Creeper blast radius** | scales with level | **untouched** | — |
 | **Kill reward** | drops scale with the mob's level | **flat 5 XP** | the kill trigger cannot read the dead mob's level |
+| Attack damage | scales on the damage event | scales the `attack_damage` attribute | mobs that lack the attribute, like cows, keep vanilla damage |
 | Level-150 aggression | real AI: passives hunt you down | hostiles only, as contact damage | goals cannot be added to a mob |
 | Level label | drawn client-side, entity untouched | written into the mob's `CustomName` | no custom rendering |
 | Spyglass scanner | label shown up to 100 blocks | level whispered in chat | — |

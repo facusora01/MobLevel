@@ -7,6 +7,9 @@ execute if entity @s[tag=ml_baseset] run function moblevel:set_health with stora
 execute if entity @s[tag=ml_spd] store result storage moblevel:v spd double 0.001 run scoreboard players get @s ml_basespd
 execute if entity @s[tag=ml_spd] run function moblevel:set_speed with storage moblevel:v
 
+execute if entity @s[tag=ml_dmgset] if score @s ml_basedmg matches 1.. store result storage moblevel:v dmg double 0.1 run scoreboard players get @s ml_basedmg
+execute if entity @s[tag=ml_dmgset] if score @s ml_basedmg matches 1.. run function moblevel:set_damage with storage moblevel:v
+
 scoreboard players reset @s
 tag @s remove ml_leveled
 tag @s remove ml2
@@ -16,3 +19,4 @@ tag @s remove ml_sun
 tag @s remove ml_spd
 tag @s remove ml_baby
 tag @s remove ml_baseset
+tag @s remove ml_dmgset

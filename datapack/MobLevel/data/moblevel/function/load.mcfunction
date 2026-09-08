@@ -11,6 +11,8 @@ scoreboard objectives add ml_dmg dummy
 scoreboard objectives add ml_timer dummy
 scoreboard objectives add ml_basehp dummy
 scoreboard objectives add ml_basespd dummy
+scoreboard objectives add ml_basedmg dummy
+scoreboard objectives add ml_dm dummy
 
 # Constants
 scoreboard players set #100 ml_m 100
