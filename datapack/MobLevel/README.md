@@ -1,56 +1,59 @@
-# MobLevel — Datapack (vanilla server compatible)
+# MobLevel — datapack edition
 
-A data-driven port of the MobLevel mod. Works on vanilla servers/clients (1.21+),
-no Forge required. Because datapacks cannot touch entity AI or client rendering,
-some mod features are approximated — see Limitations.
+Every mob gets a level from 1 to 150 that scales its health, its damage and how
+dangerous it is. No mod loader needed.
+
+One download covers **Minecraft 1.20.2 through 26.2**. The pack carries version
+overlays and picks the right files for whatever server it lands on.
 
 ## Install
-Drop the `MobLevel` folder (or the zip) into `<world>/datapacks/` and run
-`/reload` (or `/datapack enable`).
+
+Drop this zip (or the unpacked folder) into `<world>/datapacks/` and run `/reload`.
+
+To remove it cleanly, run `/function moblevel:uninstall`, let your world load once so
+every chunk gets cleaned, then delete it.
 
 ## What it does
-- **Levels** — every mob in `#moblevel:leveled` gets a level on spawn.
-  93.5% land in 1-20; 6.5% roll the high band, tiered to mirror the mod's
-  rarity curve (a level 150 is roughly 1 in 3000 mobs).
-- **Health scaling** — level 20 = vanilla. Level 1 = 0.5x, level 150 = 7.5x.
+
+- **Levels** — every mob in `#moblevel:leveled` rolls a level on spawn. Passives are
+  far rarer at the top than hostiles: above level 100 is 1 in 840 for a passive, 1 in
+  281 for a hostile. Animals never despawn, so a generous curve would pile them up
+  forever; hostiles get replaced constantly, so theirs can afford to be looser.
+- **Health scaling** — level 20 is vanilla, level 1 is 0.5x, level 150 is 7.5x.
   Baselines are captured per mob, so re-applying can never compound.
-- **Colored name** — `[LvN]` colored by tier, shown when you look at the mob.
-- **Level 150 perks** — purple particles, sun immunity (zombies/skeletons),
-  1.5x movement speed, and (hostiles only) contact damage to nearby players.
-- **Spyglass scanner** — scope at a leveled mob within 100 blocks and its
-  level tag is whispered to you in chat (walls block the scan).
-- **Boss limits** — Ender Dragon and Wither are clamped to levels 20-80.
-- **Breeding** — a baby inherits the average level of the two nearest adults,
-  with a ~1% mutation that adds +3..8 (shiny-style climb).
-- **Hostile despawn** — the level label would normally make hostiles persistent
-  forever; a 10s sweep re-creates the vanilla far-despawn (PersistenceRequired
-  is honored).
-- **Kill reward** — killing a leveled mob grants the player bonus XP.
+- **Damage scaling** — 2% per level above 20, so a level 150 hits for 3.6x. Mobs that
+  have no attack damage attribute at all, like cows, are left alone.
+- **Breeding** — a calf inherits the average of its parents, rounded down, with a rare
+  mutation that pushes it above them.
+- **Colored `[LvN]` label**, shown when you look at the mob.
+- **Level 150 perks** — purple particles, sun immunity, 1.5x speed, and contact damage
+  to nearby players for hostiles.
+- **Spyglass scanner** — scope a leveled mob within 100 blocks and its level is
+  whispered to you in chat.
 
-## Admin functions
-| Function | What it does |
-|---|---|
-| `/function moblevel:restart_levels` | One-time per world: re-rolls pre-update mobs with the current rates (never upward); unloaded mobs keep migrating as chunks load |
-| `/function moblevel:uninstall` | Strips MobLevel data from loaded mobs, stops the pack. Re-run in other areas, then remove the datapack |
-| `/function moblevel:purge` | Removes all MobLevel scoreboard objectives (after uninstall) |
+## What the mod does and this cannot
 
-## Limitations (vs the Forge mod)
-- **No real aggression** — datapacks can't add AI goals. "Aggression" is
-  contact damage from hostile level-150 mobs within ~1.6 blocks; passives never
-  deal damage, and nothing chases beyond its vanilla AI.
-- **Spyglass scan is chat-based** — the client can't render distant nameplates,
-  so the level arrives as a private chat line instead of a floating label.
-- **No level-scaled loot/XP on death** — the dead mob's level can't be read in
-  the kill trigger, so the reward is flat.
-- **Passive mobs deal no melee** — handled via the contact-damage script instead.
-- **Breeding parents** are inferred by proximity (nearest two leveled adults).
-  Reliable for a normal pair; a crowded pen can pick the wrong parent.
-- **Name-tagged mobs**: the pack can't detect a player renaming a mob, so the
-  despawn sweep may remove far-away renamed hostiles unless they also have
-  PersistenceRequired.
+| | mod | datapack | why |
+|---|---|---|---|
+| Levels, health, damage, breeding | full | full | — |
+| **Totem death-save** | yes | **missing** | a datapack cannot cancel a death |
+| **Creeper blast radius** | scales with level | **untouched** | — |
+| **Kill reward** | drops scale with the level | **flat 5 XP** | the kill trigger cannot read the dead mob's level |
+| Level-150 aggression | real AI, passives hunt you down | hostiles only, as contact damage | goals cannot be added to a mob |
+| Level label | drawn client-side, entity untouched | written into `CustomName` | no custom rendering |
 
-## Versions
-Targets 1.21.2+ attribute names (`minecraft:max_health`, etc.) and uses
-`/random`, macros, `return`, and modern particle SNBT. `supported_formats` is
-left open so newer releases keep loading it; bump `pack_format` if a version
-refuses to load.
+## Two things to know before installing
+
+**The pack removes mobs to keep them from piling up.** Writing the level into
+`CustomName` is what vanilla reads as name-tag persistence, so leveled hostiles would
+never despawn. Every 10 seconds the pack removes far-away mobs whose only anchor is its
+own label. Mobs you named yourself are left alone, but that check is the only thing
+protecting them.
+
+**Never run this together with the MobLevel mod.** Both assign levels independently, so
+every mob ends up with two different ones.
+
+## Commands
+
+- `/function moblevel:restart_levels` — one-time re-roll of pre-update mobs
+- `/function moblevel:uninstall` — strip every trace and stop working
