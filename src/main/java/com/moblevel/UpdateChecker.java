@@ -61,7 +61,7 @@ public class UpdateChecker {
                     JsonArray versions = JsonParser.parseString(response.body()).getAsJsonArray();
                     if (versions.isEmpty()) return;
                     String latest = versions.get(0).getAsJsonObject().get("version_number").getAsString();
-                    if (isNewer(latest, current)) {
+                    if (VersionCompare.isNewer(latest, current)) {
                         Minecraft.getInstance().execute(() -> notifyPlayer(latest, current));
                     }
                 } catch (Exception ignored) {
@@ -83,31 +83,5 @@ public class UpdateChecker {
                 .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, PROJECT_PAGE))));
 
         player.displayClientMessage(message, false);
-    }
-
-    // Numeric compare of "a.b.c" cores; a stable release beats the same-numbered
-    // prerelease (1.3.0 is newer than 1.3.0-beta). Non-numeric noise is ignored.
-    static boolean isNewer(String remote, String local) {
-        int[] r = parseCore(remote);
-        int[] l = parseCore(local);
-        for (int i = 0; i < 3; i++) {
-            if (r[i] != l[i]) return r[i] > l[i];
-        }
-        return local.contains("-") && !remote.contains("-");
-    }
-
-    private static int[] parseCore(String version) {
-        String[] parts = version.split("-")[0].split("\\.");
-        int[] out = new int[3];
-        for (int i = 0; i < 3 && i < parts.length; i++) {
-            String digits = parts[i].replaceAll("\\D", "");
-            if (!digits.isEmpty()) {
-                try {
-                    out[i] = Integer.parseInt(digits);
-                } catch (NumberFormatException ignored) {
-                }
-            }
-        }
-        return out;
     }
 }
