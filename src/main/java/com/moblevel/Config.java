@@ -7,22 +7,38 @@ import net.neoforged.neoforge.common.ModConfigSpec;
 public class Config {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
+    // Two curves: hostiles (MobCategory.MONSTER) despawn and are replaced constantly, so a
+    // generous tail there is self-limiting. Everything else - farm animals above all - never
+    // despawns, so every high roll is permanent and they pile up over hours of exploring.
+    // Percentages in these comments are CUMULATIVE (share of all spawns at or above a level),
+    // which is what a player actually meets, not the odds of one exact level.
+
     public static final ModConfigSpec.DoubleValue HIGH_LEVEL_CHANCE = BUILDER
-            .comment("Chance (0.0 to 1.0) that a mob spawns ABOVE level 20.",
-                    "0.065 = 6.5%. The rest spawn in the common band 1-20.",
-                    "Percentages below are CUMULATIVE (share of all spawns at or above a level),",
-                    "which is what you actually meet in game. With exponent 5.0 this yields:",
-                    "50+ ~1.69%, 100+ ~0.61% (one in 164), 130+ ~0.22%, exactly 150 ~0.010%.")
-            .defineInRange("highLevelChance", 0.065, 0.0, 1.0);
+            .comment("Chance (0.0 to 1.0) that a PASSIVE mob spawns ABOVE level 20.",
+                    "0.020 = 2%. The rest spawn in the common band 1-20.",
+                    "With exponent 8.0 this yields: 50+ ~0.35%, 100+ ~0.12% (one in 810),",
+                    "130+ ~0.045%, exactly 150 ~0.002%.")
+            .defineInRange("highLevelChance", 0.020, 0.0, 1.0);
 
     public static final ModConfigSpec.DoubleValue LEVEL_RARITY_EXPONENT = BUILDER
-            .comment("Rarity curve exponent within the high band (21-150). Higher = high levels rarer.",
-                    "Raise this to thin out the top of the band without changing how many mobs",
-                    "enter it at all. Cumulative share of all spawns at level 100 or above:",
-                    "1.5 -> 1.84% (one in 54), 3.0 -> 0.99%, 5.0 -> 0.61%, 10.0 -> 0.31%.",
-                    "Passive animals never despawn, so every high-level one ever spawned stays",
-                    "in the world; a gentle curve accumulates them over hours of exploring.")
-            .defineInRange("levelRarityExponent", 5.0, 1.0, 10.0);
+            .comment("Rarity curve exponent for PASSIVE mobs within the high band (21-150).",
+                    "Higher = high levels rarer. Raise this to thin out the top of the band",
+                    "without changing how many mobs enter it at all.")
+            .defineInRange("levelRarityExponent", 8.0, 1.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue HOSTILE_HIGH_LEVEL_CHANCE = BUILDER
+            .comment("Same as highLevelChance, but for HOSTILE mobs (MobCategory.MONSTER).",
+                    "0.045 = 4.5%. With hostileLevelRarityExponent 6.0 this yields:",
+                    "50+ ~1.00%, 100+ ~0.36% (one in 278), 130+ ~0.13%, exactly 150 ~0.006%.",
+                    "That is about 2.9x more likely than a passive, which reads as a rare",
+                    "encounter rather than a constant threat.")
+            .defineInRange("hostileHighLevelChance", 0.045, 0.0, 1.0);
+
+    public static final ModConfigSpec.DoubleValue HOSTILE_LEVEL_RARITY_EXPONENT = BUILDER
+            .comment("Rarity curve exponent for HOSTILE mobs within the high band (21-150).",
+                    "Cumulative share of hostile spawns at level 100 or above, at chance 0.045:",
+                    "5.0 -> 0.43%, 6.0 -> 0.36% (one in 278), 8.0 -> 0.27%, 10.0 -> 0.22%.")
+            .defineInRange("hostileLevelRarityExponent", 6.0, 1.0, 10.0);
 
     public static final ModConfigSpec.DoubleValue COMMON_LEVEL_SKEW = BUILDER
             .comment("Shape of the common band (1-20). 1.0 = flat, 5% per level. Below 1.0 nudges",

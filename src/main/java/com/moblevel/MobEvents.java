@@ -104,7 +104,7 @@ public class MobEvents {
         }
 
         if (currentLevel == 0) {
-            currentLevel = calculateLevel(mob.getRandom());
+            currentLevel = calculateLevel(mob);
             if (BossMobUtil.isBossMob(mob)) {
                 currentLevel = BossMobUtil.getLevelForBossMob(currentLevel);
                 // LOGGER.info("  BOSS MOB detected: {}, applying level limits: {}",
@@ -322,12 +322,20 @@ public class MobEvents {
         // CustomName, so vanilla persistence and despawn rules apply untouched.
     }
 
-    private static int calculateLevel(net.minecraft.util.RandomSource random) {
+    // Hostiles roll on their own, slightly more generous curve. They despawn and are replaced
+    // constantly, so their high-level population stays bounded by whatever is near the player,
+    // while passives never despawn and would otherwise accumulate forever.
+    private static boolean isHostile(Mob mob) {
+        return mob.getType().getCategory() == net.minecraft.world.entity.MobCategory.MONSTER;
+    }
+
+    private static int calculateLevel(Mob mob) {
+        boolean hostile = isHostile(mob);
         return LevelCalculator.rollSpawnLevel(
-            random.nextDouble(),
-            random.nextDouble(),
-            Config.HIGH_LEVEL_CHANCE.get(),
-            Config.LEVEL_RARITY_EXPONENT.get(),
+            mob.getRandom().nextDouble(),
+            mob.getRandom().nextDouble(),
+            hostile ? Config.HOSTILE_HIGH_LEVEL_CHANCE.get() : Config.HIGH_LEVEL_CHANCE.get(),
+            hostile ? Config.HOSTILE_LEVEL_RARITY_EXPONENT.get() : Config.LEVEL_RARITY_EXPONENT.get(),
             Config.COMMON_LEVEL_SKEW.get(),
             Config.MAX_LEVEL.get());
     }
@@ -391,7 +399,7 @@ public class MobEvents {
     static void reassignLevel(Mob mob) {
         int oldLevel = DropsCalculator.getLevelFromTags(mob.entityTags());
         stripModData(mob);
-        int level = calculateLevel(mob.getRandom());
+        int level = calculateLevel(mob);
         if (BossMobUtil.isBossMob(mob)) {
             level = BossMobUtil.getLevelForBossMob(level);
         }

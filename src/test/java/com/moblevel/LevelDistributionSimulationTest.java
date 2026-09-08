@@ -11,35 +11,58 @@ import static org.junit.Assert.*;
 public class LevelDistributionSimulationTest {
 
     // Mirror of Config defaults (Config needs Forge to load, so constants are duplicated here).
-    private static final double HIGH_CHANCE = 0.065;
-    private static final double EXPONENT = 5.0;
+    private static final double HIGH_CHANCE = 0.020;
+    private static final double EXPONENT = 8.0;
+    private static final double HOSTILE_HIGH_CHANCE = 0.045;
+    private static final double HOSTILE_EXPONENT = 6.0;
     private static final double COMMON_SKEW = 0.75;
     private static final int MAX = 150;
 
     @Test
     public void simulate1000Spawns() {
-        int[] counts = simulate(1_000);
-        printReport("1,000 spawns (a night of play)", counts, 1_000);
+        int[] counts = simulate(1_000, HIGH_CHANCE, EXPONENT);
+        printReport("1,000 passive spawns (a night of play)", counts, 1_000);
+    }
+
+    @Test
+    public void simulateHostileSpawns() {
+        int[] counts = simulate(1_000_000, HOSTILE_HIGH_CHANCE, HOSTILE_EXPONENT);
+        printReport("1,000,000 HOSTILE spawns", counts, 1_000_000);
+
+        // Hostiles must stay rarer than one in a hundred at level 100+, but clearly
+        // more common than passives, which sit near one in 800.
+        int elite = 0;
+        for (int lvl = 100; lvl <= MAX; lvl++) elite += counts[lvl];
+        double elitePct = 100.0 * elite / 1_000_000;
+        assertTrue("Hostile 100+ expected ~0.36%, got " + elitePct,
+            elitePct > 0.25 && elitePct < 0.55);
     }
 
     @Test
     public void simulate1MillionSpawns() {
-        int[] counts = simulate(1_000_000);
-        printReport("1,000,000 spawns (stable percentages)", counts, 1_000_000);
+        int[] counts = simulate(1_000_000, HIGH_CHANCE, EXPONENT);
+        printReport("1,000,000 PASSIVE spawns (stable percentages)", counts, 1_000_000);
 
-        // Sanity: common band should hold ~93.5% and nothing may exceed MAX.
+        // Sanity: common band should hold ~98% and nothing may exceed MAX.
         int common = 0;
         for (int lvl = 1; lvl <= 20; lvl++) common += counts[lvl];
         double commonPct = 100.0 * common / 1_000_000;
-        assertTrue("Common band expected ~93.5%, got " + commonPct, commonPct > 92.0 && commonPct < 95.0);
+        assertTrue("Common band expected ~98%, got " + commonPct, commonPct > 97.0 && commonPct < 99.0);
+
+        // Passive 100+ is the whole point of the split: it must stay near one in 800.
+        int elite = 0;
+        for (int lvl = 100; lvl <= MAX; lvl++) elite += counts[lvl];
+        double elitePct = 100.0 * elite / 1_000_000;
+        assertTrue("Passive 100+ expected ~0.12%, got " + elitePct,
+            elitePct > 0.07 && elitePct < 0.20);
     }
 
-    private int[] simulate(int n) {
+    private int[] simulate(int n, double highChance, double exponent) {
         Random random = new Random(20260705L); // fixed seed: reproducible report
         int[] counts = new int[MAX + 1];
         for (int i = 0; i < n; i++) {
             int level = LevelCalculator.rollSpawnLevel(
-                random.nextDouble(), random.nextDouble(), HIGH_CHANCE, EXPONENT, COMMON_SKEW, MAX);
+                random.nextDouble(), random.nextDouble(), highChance, exponent, COMMON_SKEW, MAX);
             counts[level]++;
         }
         return counts;
