@@ -21,7 +21,7 @@ public class ModCommands {
     static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
             Commands.literal("moblevel")
-                .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
+                .requires(source -> source.hasPermission(2))
                 .then(Commands.literal("uninstall")
                     .executes(ctx -> {
                         Config.UNINSTALL_MODE.set(true);
@@ -63,7 +63,7 @@ public class ModCommands {
                             ObjectiveCriteria.RenderType.INTEGER, false, null);
 
                         int total = forEachLoadedMob(ctx.getSource(), mob -> {
-                            if (!mob.entityTags().contains(MobEvents.VERSION_TAG)) {
+                            if (!mob.getTags().contains(MobEvents.VERSION_TAG)) {
                                 MobEvents.reassignLevel(mob);
                                 return true;
                             }

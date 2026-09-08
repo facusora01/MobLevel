@@ -82,7 +82,7 @@ public class UpdateChecker {
                 .withUnderlined(true)
                 .withClickEvent(new ClickEvent.OpenUrl(URI.create(PROJECT_PAGE)))));
 
-        player.sendSystemMessage(message);
+        player.displayClientMessage(message, false);
     }
 
     // Numeric compare of "a.b.c" cores; a stable release beats the same-numbered

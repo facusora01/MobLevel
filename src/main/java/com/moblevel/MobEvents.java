@@ -18,11 +18,11 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.monster.zombie.Zombie;
-import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.monster.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -50,8 +50,8 @@ import com.mojang.logging.LogUtils;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
-    private static final Identifier SPEED_BOOST_ID =
-        Identifier.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
+    private static final ResourceLocation SPEED_BOOST_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.
@@ -80,9 +80,9 @@ public class MobEvents {
         boolean freshSpawn = true;
 
         // LOGGER.info("onEntityJoinLevel: {} (tags before: {})",
-        //     mob.getType().getDescription().getString(), mob.entityTags());
+        //     mob.getType().getDescription().getString(), mob.getTags());
 
-        for (String tag : mob.entityTags()) {
+        for (String tag : mob.getTags()) {
             if (tag.startsWith("lvl:")) {
                 try {
                     currentLevel = Integer.parseInt(tag.substring(4));
@@ -96,7 +96,7 @@ public class MobEvents {
 
         // A mob bred this tick already carries its level tag but has vanilla health,
         // so it needs the fresh-spawn treatment to be healed to its scaled maximum.
-        if (mob.entityTags().contains(NEWBORN_TAG)) {
+        if (mob.getTags().contains(NEWBORN_TAG)) {
             mob.removeTag(NEWBORN_TAG);
             // Bred by this version, so the one-time migration must never re-roll it.
             mob.addTag(VERSION_TAG);
@@ -112,7 +112,7 @@ public class MobEvents {
             }
             mob.addTag("lvl:" + currentLevel);
             mob.addTag(VERSION_TAG);
-        } else if (!mob.entityTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
+        } else if (!mob.getTags().contains(VERSION_TAG) && isMigrationEnabled(mob)) {
             // Pre-1.2.2 mob and /moblevel restartLevels was run: re-roll it once
             // (downgrade-only) as its chunk loads. reassignLevel adds the version tag.
             reassignLevel(mob);
@@ -148,9 +148,9 @@ public class MobEvents {
         if (child.level().isClientSide()) return;
 
         int levelA = (event.getParentA() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentA().entityTags()) : 0;
+            ? DropsCalculator.getLevelFromTags(event.getParentA().getTags()) : 0;
         int levelB = (event.getParentB() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentB().entityTags()) : 0;
+            ? DropsCalculator.getLevelFromTags(event.getParentB().getTags()) : 0;
 
         int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
         int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
@@ -246,7 +246,7 @@ public class MobEvents {
         ItemStack mainHand = entity.getMainHandItem();
         ItemStack offHand = entity.getOffhandItem();
 
-        boolean hasTotemTag = entity.entityTags().contains("HasTotemNecklace");
+        boolean hasTotemTag = entity.getTags().contains("HasTotemNecklace");
         boolean hasTotemItem = false;
         try {
             hasTotemItem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
@@ -397,7 +397,7 @@ public class MobEvents {
     // Wipes the mob's old level and rolls a fresh one with the current spawn curve.
     // Used by /moblevel restartLevels to fix worlds bloated by pre-1.2.1 levels.
     static void reassignLevel(Mob mob) {
-        int oldLevel = DropsCalculator.getLevelFromTags(mob.entityTags());
+        int oldLevel = DropsCalculator.getLevelFromTags(mob.getTags());
         stripModData(mob);
         int level = calculateLevel(mob);
         if (BossMobUtil.isBossMob(mob)) {
@@ -423,7 +423,7 @@ public class MobEvents {
     // Reverts everything MobLevel persisted on this entity back to vanilla.
     static void stripModData(Mob mob) {
         String lvlTag = null;
-        for (String tag : mob.entityTags()) {
+        for (String tag : mob.getTags()) {
             if (tag.startsWith("lvl:")) {
                 lvlTag = tag;
                 break;
@@ -489,6 +489,6 @@ public class MobEvents {
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
-        return DropsCalculator.getLevelFromTags(entity.entityTags());
+        return DropsCalculator.getLevelFromTags(entity.getTags());
     }
 }

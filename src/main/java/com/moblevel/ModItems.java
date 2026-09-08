@@ -9,7 +9,7 @@ public class ModItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(MobLevel.MODID);
 
     public static final DeferredItem<Item> TOTEM_NECKLACE =
-        ITEMS.registerSimpleItem("totem_necklace", props -> props.stacksTo(1));
+        ITEMS.registerSimpleItem("totem_necklace", new Item.Properties().stacksTo(1));
 
     private static boolean registered = false;
 
