@@ -6,6 +6,9 @@ bin
 .classpath
 .project
 
+# vscode (ModDevGradle generates launch.json)
+.vscode
+
 # idea
 out
 *.ipr
