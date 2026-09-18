@@ -12,7 +12,7 @@ import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-@EventBusSubscriber(modid = MobLevel.MODID)
+@EventBusSubscriber(modid = MobLevel.MODID, bus = EventBusSubscriber.Bus.MOD)
 public class ModMessages {
     // Bumped to 2: clients without LevelSyncPayload cannot join and get a clear
     // version-mismatch screen instead of a mid-game packet error.
