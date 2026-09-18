@@ -119,7 +119,7 @@ public class ModCommands {
             .append(Component.literal("[Click here to send it]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent.OpenUrl(URI.create(url)))))
+                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))))
             .append(Component.literal(
                 "\nNothing has been sent yet. The page opens with your version and the mob "
                 + "you are looking at already filled in.")
@@ -133,7 +133,7 @@ public class ModCommands {
         out.put("MobLevel", ModList.get().getModContainerById(MobLevel.MODID)
             .map(container -> container.getModInfo().getVersion().toString())
             .orElse("unknown"));
-        out.put("Minecraft", SharedConstants.getCurrentVersion().name());
+        out.put("Minecraft", SharedConstants.getCurrentVersion().getName());
         out.put("Loader", "NeoForge");
         MinecraftServer server = player.level().getServer();
         out.put("Playing on", server != null && server.isDedicatedServer()

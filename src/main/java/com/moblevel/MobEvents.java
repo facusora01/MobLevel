@@ -300,7 +300,7 @@ public class MobEvents {
         // selective first: the 1-in-thousands level check runs before the heightmap lookup
         // in canSeeSky, so a horde of ordinary burning zombies costs almost nothing extra.
         if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
-                && mob.level().isBrightOutside()
+                && mob.level().isDay()
                 && getLevelFromEntity(mob) >= 150
                 && mob.level().canSeeSky(mob.blockPosition())) {
             mob.clearFire();
