@@ -85,6 +85,12 @@ public class Config {
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static boolean validateItemName(final Object obj) {
-        return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(ResourceLocation.parse(itemName));
+        if (!(obj instanceof String itemName)) {
+            return false;
+        }
+        // tryParse, not the 1.21 ResourceLocation.parse: that method only exists on
+        // Forge 1.20.1 and blows up with NoSuchMethodError on NeoForge 1.20.1.
+        ResourceLocation id = ResourceLocation.tryParse(itemName);
+        return id != null && BuiltInRegistries.ITEM.containsKey(id);
     }
 }

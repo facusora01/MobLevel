@@ -18,7 +18,7 @@ public class ModMessages {
     // version-mismatch screen instead of a mid-game packet error.
     private static final String PROTOCOL_VERSION = "2";
     public static final SimpleChannel INSTANCE = net.minecraftforge.network.NetworkRegistry.newSimpleChannel(
-            ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "messages"),
+            new ResourceLocation(MobLevel.MODID, "messages"),
             () -> PROTOCOL_VERSION,
             PROTOCOL_VERSION::equals,
             PROTOCOL_VERSION::equals
