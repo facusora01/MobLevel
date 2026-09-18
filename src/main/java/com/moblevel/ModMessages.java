@@ -8,43 +8,41 @@ import net.minecraft.world.entity.Entity;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
+import net.minecraftforge.network.Channel;
+import net.minecraftforge.network.ChannelBuilder;
 import net.minecraftforge.network.PacketDistributor;
-import net.minecraftforge.network.simple.SimpleChannel;
+import net.minecraftforge.network.SimpleChannel;
 import net.minecraft.resources.ResourceLocation;
 
 public class ModMessages {
     // Bumped to 2: clients without LevelSyncPayload cannot join and get a clear
     // version-mismatch screen instead of a mid-game packet error.
-    private static final String PROTOCOL_VERSION = "2";
-    public static final SimpleChannel INSTANCE = net.minecraftforge.network.NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(MobLevel.MODID, "messages"),
-            () -> PROTOCOL_VERSION,
-            PROTOCOL_VERSION::equals,
-            PROTOCOL_VERSION::equals
-    );
+    // Bumped to 2: clients without LevelSyncPayload cannot join and get a clear
+    // version-mismatch screen instead of a mid-game packet error.
+    private static final int PROTOCOL_VERSION = 2;
+    public static final SimpleChannel INSTANCE = ChannelBuilder
+            .named(new ResourceLocation(MobLevel.MODID, "messages"))
+            .networkProtocolVersion(PROTOCOL_VERSION)
+            .clientAcceptedVersions(Channel.VersionTest.exact(PROTOCOL_VERSION))
+            .serverAcceptedVersions(Channel.VersionTest.exact(PROTOCOL_VERSION))
+            .simpleChannel();
     private static int packetId = 0;
 
     public static void register() {
-        INSTANCE.registerMessage(
-                id(),
-                TotemAnimationPayload.class,
-                (msg, buf) -> msg.toBytes(buf),
-                TotemAnimationPayload::new,
-                (msg, ctx) -> handleTotemAnimation(msg, ctx.get()),
-                java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT)
-        );
-        INSTANCE.registerMessage(
-                id(),
-                LevelSyncPayload.class,
-                (msg, buf) -> msg.toBytes(buf),
-                LevelSyncPayload::new,
-                (msg, ctx) -> handleLevelSync(msg, ctx.get()),
-                java.util.Optional.of(NetworkDirection.PLAY_TO_CLIENT)
-        );
+        INSTANCE.messageBuilder(TotemAnimationPayload.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(TotemAnimationPayload::toBytes)
+                .decoder(TotemAnimationPayload::new)
+                .consumerMainThread(ModMessages::handleTotemAnimation)
+                .add();
+        INSTANCE.messageBuilder(LevelSyncPayload.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(LevelSyncPayload::toBytes)
+                .decoder(LevelSyncPayload::new)
+                .consumerMainThread(ModMessages::handleLevelSync)
+                .add();
     }
 
-    private static void handleLevelSync(LevelSyncPayload payload, NetworkEvent.Context context) {
+    private static void handleLevelSync(LevelSyncPayload payload, CustomPayloadEvent.Context context) {
         context.enqueueWork(() ->
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () ->
                         ClientLevelCache.put(payload.entityId(), payload.level()))
@@ -56,7 +54,7 @@ public class ModMessages {
         return packetId++;
     }
 
-    private static void handleTotemAnimation(TotemAnimationPayload payload, NetworkEvent.Context context) {
+    private static void handleTotemAnimation(TotemAnimationPayload payload, CustomPayloadEvent.Context context) {
         context.enqueueWork(() ->
                 DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> {
                     Entity entity = Minecraft.getInstance().level.getEntity(payload.entityId());
@@ -84,11 +82,7 @@ public class ModMessages {
         context.setPacketHandled(true);
     }
 
-    public static void sendToServer(Object msg) {
-        INSTANCE.sendToServer(msg);
-    }
-
     public static void sendToPlayer(TotemAnimationPayload msg, PacketDistributor.PacketTarget target) {
-        INSTANCE.send(target, msg);
+        INSTANCE.send(msg, target);
     }
 }

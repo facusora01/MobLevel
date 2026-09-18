@@ -82,7 +82,7 @@ public class ModCommands {
                         }
                         scoreboard.addObjective(MobEvents.MIGRATION_MARKER, ObjectiveCriteria.DUMMY,
                             Component.literal("MobLevel migration marker"),
-                            ObjectiveCriteria.RenderType.INTEGER);
+                            ObjectiveCriteria.RenderType.INTEGER, false, null);
 
                         int total = forEachLoadedMob(ctx.getSource(), mob -> {
                             if (!mob.getTags().contains(MobEvents.VERSION_TAG)) {

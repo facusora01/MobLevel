@@ -151,8 +151,8 @@ public class MobEvents {
         if (level <= 0) return;
 
         ModMessages.INSTANCE.send(
-            PacketDistributor.PLAYER.with(() -> player),
-            new LevelSyncPayload(mob.getId(), level));
+            new LevelSyncPayload(mob.getId(), level),
+            PacketDistributor.PLAYER.with(player));
     }
 
     @SubscribeEvent
@@ -297,10 +297,10 @@ public class MobEvents {
             TotemAnimationPayload payload = new TotemAnimationPayload(entity.getId(), visualStack);
 
             if (entity instanceof ServerPlayer serverPlayer) {
-                ModMessages.INSTANCE.send(PacketDistributor.PLAYER.with(() -> serverPlayer), payload);
+                ModMessages.INSTANCE.send(payload, PacketDistributor.PLAYER.with(serverPlayer));
             }
 
-            ModMessages.INSTANCE.send(PacketDistributor.TRACKING_ENTITY.with(() -> entity), payload);
+            ModMessages.INSTANCE.send(payload, PacketDistributor.TRACKING_ENTITY.with(entity));
         }
     }
 
@@ -432,8 +432,8 @@ public class MobEvents {
         applyLevelStats(mob, level, true);
         // Clients tracking this mob already cached the old level; push the new one.
         ModMessages.INSTANCE.send(
-            PacketDistributor.TRACKING_ENTITY.with(() -> mob),
-            new LevelSyncPayload(mob.getId(), level));
+            new LevelSyncPayload(mob.getId(), level),
+            PacketDistributor.TRACKING_ENTITY.with(mob));
     }
 
     private static boolean isMigrationEnabled(Mob mob) {

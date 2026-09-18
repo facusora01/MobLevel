@@ -2,7 +2,8 @@ package com.moblevel;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkEvent;
+import net.minecraftforge.event.network.CustomPayloadEvent;
+
 
 public class TotemAnimationPayload {
     private final int entityId;
@@ -31,7 +32,7 @@ public class TotemAnimationPayload {
         return stack;
     }
 
-    public boolean handle(NetworkEvent.Context context) {
+    public boolean handle(CustomPayloadEvent.Context context) {
         context.enqueueWork(() -> {
         });
         return true;
