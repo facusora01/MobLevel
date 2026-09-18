@@ -82,6 +82,6 @@ public class UpdateChecker {
                 .withUnderlined(true)
                 .withClickEvent(new ClickEvent.OpenUrl(URI.create(PROJECT_PAGE)))));
 
-        player.sendSystemMessage(message);
+        player.displayClientMessage(message, false);
     }
 }

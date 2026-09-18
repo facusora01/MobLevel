@@ -86,7 +86,7 @@ public class ModCommands {
                             ObjectiveCriteria.RenderType.INTEGER, false, null);
 
                         int total = forEachLoadedMob(ctx.getSource(), mob -> {
-                            if (!mob.entityTags().contains(MobEvents.VERSION_TAG)) {
+                            if (!mob.getTags().contains(MobEvents.VERSION_TAG)) {
                                 MobEvents.reassignLevel(mob);
                                 return true;
                             }
@@ -143,11 +143,11 @@ public class ModCommands {
         Mob target = mobInCrosshair(player);
         if (target != null) {
             out.put("Mob looked at", target.getType().getDescription().getString());
-            out.put("Its level", String.valueOf(DropsCalculator.getLevelFromTags(target.entityTags())));
+            out.put("Its level", String.valueOf(DropsCalculator.getLevelFromTags(target.getTags())));
             out.put("Its health", String.format(Locale.ROOT, "%.1f / %.1f",
                 target.getHealth(), target.getMaxHealth()));
-            out.put("Its tags", target.entityTags().isEmpty()
-                ? "(none)" : String.join(" ", target.entityTags()));
+            out.put("Its tags", target.getTags().isEmpty()
+                ? "(none)" : String.join(" ", target.getTags()));
         }
         return out;
     }
