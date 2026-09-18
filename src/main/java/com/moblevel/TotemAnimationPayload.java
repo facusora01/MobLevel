@@ -1,6 +1,7 @@
 package com.moblevel;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.event.network.CustomPayloadEvent;
 
@@ -16,12 +17,12 @@ public class TotemAnimationPayload {
 
     public TotemAnimationPayload(FriendlyByteBuf buf) {
         this.entityId = buf.readInt();
-        this.stack = buf.readItem();
+        this.stack = new ItemStack(BuiltInRegistries.ITEM.get(buf.readResourceLocation()));
     }
 
     public void toBytes(FriendlyByteBuf buf) {
         buf.writeInt(this.entityId);
-        buf.writeItem(this.stack);
+        buf.writeResourceLocation(BuiltInRegistries.ITEM.getKey(this.stack.getItem()));
     }
 
     public int entityId() {

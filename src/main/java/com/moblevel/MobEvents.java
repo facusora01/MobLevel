@@ -386,7 +386,7 @@ public class MobEvents {
             AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
             if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) == null) {
                 moveSpeed.addTransientModifier(new AttributeModifier(
-                    SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.MULTIPLY_TOTAL));
+                    SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
 
             // Aggressive toward players, regardless of mob type (cows included).
