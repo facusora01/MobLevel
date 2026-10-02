@@ -22,3 +22,7 @@ type="required"
 versionRange="${minecraft_version_range}"
 ordering="NONE"
 side="BOTH"
+
+# Shared with the Fabric build: villager trades, breeding and the trading screen title.
+[[mixins]]
+config="moblevel.common.mixins.json"

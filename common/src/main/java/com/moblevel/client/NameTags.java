@@ -1,6 +1,7 @@
 package com.moblevel.client;
 
 import com.moblevel.ClientLevelCache;
+import com.moblevel.MobEvents;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -88,19 +89,13 @@ public class NameTags {
     }
 
     private static Component buildLabel(Mob mob, int level) {
-        ChatFormatting color = ChatFormatting.GREEN;
-        if (level >= 50) color = ChatFormatting.AQUA;
-        if (level >= 100) color = ChatFormatting.YELLOW;
-        if (level >= 130) color = ChatFormatting.RED;
-        if (level >= 150) color = ChatFormatting.DARK_PURPLE;
-
         // A player-given name (name tag) is shown inside the label; otherwise the
         // type name, resolved by this client in its own language.
         Component base = mob.hasCustomName()
             ? mob.getCustomName()
             : mob.getType().getDescription();
 
-        return Component.literal("[Lv" + level + "] ").withStyle(color)
+        return MobEvents.levelPrefix(level)
             .append(base.copy().withStyle(ChatFormatting.WHITE));
     }
 }

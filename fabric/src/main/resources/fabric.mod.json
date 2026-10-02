@@ -15,7 +15,7 @@
     "main": ["com.moblevel.fabric.MobLevelFabric"],
     "client": ["com.moblevel.fabric.client.MobLevelFabricClient"]
   },
-  "mixins": ["moblevel.mixins.json"],
+  "mixins": ["moblevel.mixins.json", "moblevel.common.mixins.json"],
   "accessWidener": "moblevel.classtweaker",
   "depends": {
     "fabricloader": ">=${fabric_loader_version}",

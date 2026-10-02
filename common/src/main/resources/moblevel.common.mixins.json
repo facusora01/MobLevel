@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.moblevel.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AbstractVillagerMixin",
+    "VillagerMakeLoveMixin",
+    "VillagerMixin",
+    "WanderingTraderMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

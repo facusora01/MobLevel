@@ -24,6 +24,11 @@ import net.minecraft.world.entity.animal.equine.AbstractChestedHorse;
 import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.entity.animal.equine.Horse;
 import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.npc.villager.AbstractVillager;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.trading.ItemCost;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
@@ -381,8 +386,9 @@ public class MobEvents {
                     SPEED_BOOST_ID, 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
 
-            // Aggressive toward players, regardless of mob type (cows included).
-            if (mob instanceof PathfinderMob pathMob) {
+            // Aggressive toward players, regardless of mob type (cows included). Villagers and
+            // wandering traders are left out: one that attacks you can't be traded with.
+            if (mob instanceof PathfinderMob pathMob && !(mob instanceof AbstractVillager)) {
                 // Passive mobs flee via PanicGoal when hurt; remove it so they fight instead.
                 List<PanicGoal> panicGoals = new ArrayList<>();
                 for (WrappedGoal wrapped : mob.goalSelector.getAvailableGoals()) {
@@ -540,6 +546,61 @@ public class MobEvents {
 
     private static boolean isTamedMount(Mob mob) {
         return mob instanceof AbstractHorse horse && horse.isTamed();
+    }
+
+    // Rebuilds the offers a villager or wandering trader just generated (from index `from`)
+    // so they reflect its level: cheaper, bigger, longer-lasting and better enchanted the
+    // higher it is, worse below level 20. Runs once per offer, when it is created; offers are
+    // saved with the merchant, so they never get scaled twice.
+    public static void improveOffers(AbstractVillager merchant, MerchantOffers offers, int from) {
+        int level = getLevelFromEntity(merchant);
+        if (level <= 0) return;
+        for (int i = from; i < offers.size(); i++) {
+            offers.set(i, improveOffer(offers.get(i), level, merchant.getRandom()));
+        }
+    }
+
+    private static MerchantOffer improveOffer(MerchantOffer offer, int level, net.minecraft.util.RandomSource random) {
+        double price = TradeCalculator.getPriceMultiplier(level);
+        ItemCost costA = scaleCost(offer.getItemCostA(), price, random);
+        java.util.Optional<ItemCost> costB = offer.getItemCostB().map(cost -> scaleCost(cost, price, random));
+
+        ItemStack result = offer.getResult().copy();
+        result.setCount(TradeCalculator.scaleCount(result.getCount(),
+            TradeCalculator.getResultMultiplier(level), result.getMaxStackSize(), random.nextDouble()));
+        int bonus = TradeCalculator.getEnchantmentBonus(level);
+        if (bonus != 0) {
+            EnchantmentHelper.updateEnchantments(result, enchantments -> {
+                for (var enchantment : java.util.List.copyOf(enchantments.keySet())) {
+                    int max = enchantment.value().getMaxLevel();
+                    enchantments.set(enchantment, Math.max(1, Math.min(max, enchantments.getLevel(enchantment) + bonus)));
+                }
+            });
+        }
+
+        int maxUses = Math.max(1, (int) Math.round(offer.getMaxUses() * TradeCalculator.getUsesMultiplier(level)));
+        return new MerchantOffer(costA, costB, result, maxUses, offer.getXp(), offer.getPriceMultiplier());
+    }
+
+    private static ItemCost scaleCost(ItemCost cost, double multiplier, net.minecraft.util.RandomSource random) {
+        int count = TradeCalculator.scaleCount(cost.count(), multiplier, cost.itemStack().getMaxStackSize(), random.nextDouble());
+        return new ItemCost(cost.item(), count, cost.components());
+    }
+
+    // Trading screen title: "[Lv87] Librarian".
+    public static Component tradingTitle(AbstractVillager merchant, Component title) {
+        int level = getLevelFromEntity(merchant);
+        return level > 0 ? levelPrefix(level).append(title) : title;
+    }
+
+    // "[LvN] " in the level's color, shared by name tags and the trading screen.
+    public static net.minecraft.network.chat.MutableComponent levelPrefix(int level) {
+        ChatFormatting color = ChatFormatting.GREEN;
+        if (level >= 50) color = ChatFormatting.AQUA;
+        if (level >= 100) color = ChatFormatting.YELLOW;
+        if (level >= 130) color = ChatFormatting.RED;
+        if (level >= 150) color = ChatFormatting.DARK_PURPLE;
+        return Component.literal("[Lv" + level + "] ").withStyle(color);
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
