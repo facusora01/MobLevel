@@ -20,6 +20,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.animal.horse.Horse;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
@@ -52,6 +55,12 @@ import java.lang.reflect.Field;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
+    // Level health and mount speed/jump scaling, permanent modifiers saved with the mob.
+    private static final UUID HEALTH_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e60");
+    private static final UUID MOUNT_SPEED_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e61");
+    private static final UUID MOUNT_JUMP_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e62");
+    // Taming a level 150 mount succeeds this many times less often than vanilla.
+    static final int LEVEL_150_TAME_DIFFICULTY = 5;
     private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
     static final String VERSION_TAG = "ml2";
@@ -179,6 +188,11 @@ public class MobEvents {
         child.addTag(NEWBORN_TAG);
 
         // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
+    }
+
+    @SubscribeEvent
+    static void onTame(net.minecraftforge.event.entity.living.AnimalTameEvent event) {
+        if (vetoTame(event.getAnimal())) event.setCanceled(true);
     }
 
     @SubscribeEvent
@@ -321,6 +335,11 @@ public class MobEvents {
             mob.clearFire();
         }
 
+        // Just tamed: drop the player it was chasing right away instead of on the next search.
+        if (isTamedMount(mob) && mob.getTarget() instanceof Player) {
+            mob.setTarget(null);
+        }
+
         if (mob.tickCount % 10 != 0) return;
 
         int level = getLevelFromEntity(mob);
@@ -358,15 +377,39 @@ public class MobEvents {
     private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
-            // Recompute from the entity type's vanilla default, not the current base value:
-            // this event also fires on chunk reload, and scaling the already-scaled base
-            // would compound the multiplier on every reload.
-            double vanillaBase = getVanillaMaxHealth(mob, maxHealth.getBaseValue());
-            double newValue = vanillaBase * DropsCalculator.getStatMultiplier(level);
-            maxHealth.setBaseValue(newValue);
-            if (freshSpawn) {
-                mob.setHealth((float) newValue);
+            if (!freshSpawn && maxHealth.getModifier(HEALTH_UUID) == null) {
+                // Saved by a version that scaled the base value itself: put the type default
+                // back first, so the multiplier below is not applied on top of the old one.
+                maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
             }
+            rollUnrolledMount(mob);
+            // A modifier, not a new base value: it keeps each mob's own base health (horses roll
+            // theirs at spawn) and is replaced, never stacked, when this runs again on reload.
+            double base = maxHealth.getBaseValue();
+            double target = mob instanceof AbstractHorse
+                ? Math.min(base * DropsCalculator.getMountHealthMultiplier(level), DropsCalculator.MOUNT_MAX_HEALTH)
+                : base * DropsCalculator.getStatMultiplier(level);
+            setModifier(maxHealth, HEALTH_UUID, "moblevel_level_health", target / base - 1.0);
+            if (freshSpawn) {
+                mob.setHealth(mob.getMaxHealth());
+            }
+        }
+
+        if (mob instanceof AbstractHorse) {
+            // Mounts: vanilla genetics roll and inherit the base values, the level scales them.
+            // Low levels make worse mounts, high levels better ones, and a horse can still be
+            // fast but weak, or a good jumper but slow, exactly as its genes say.
+            double mult = DropsCalculator.getMountMultiplier(level);
+            AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (speed != null) {
+                // Low levels slow a mount down, but never below the slowest vanilla horse,
+                // unless it is that slow by nature.
+                double base = speed.getBaseValue();
+                double target = Math.max(base * mult, Math.min(base, DropsCalculator.MOUNT_MIN_SPEED));
+                setModifier(speed, MOUNT_SPEED_UUID, "moblevel_level_speed", target / base - 1.0);
+            }
+            AttributeInstance jump = mob.getAttribute(Attributes.JUMP_STRENGTH);
+            if (jump != null) setModifier(jump, MOUNT_JUMP_UUID, "moblevel_level_jump", mult - 1.0);
         }
 
         if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
@@ -383,8 +426,9 @@ public class MobEvents {
 
         if (level >= 150) {
             // Move 1.5x faster. Transient modifier so it doesn't compound across world reloads.
+            // Mounts skip it: their level curve above already covers speed.
             AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-            if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) == null) {
+            if (moveSpeed != null && !(mob instanceof AbstractHorse) && moveSpeed.getModifier(SPEED_BOOST_UUID) == null) {
                 moveSpeed.addTransientModifier(new AttributeModifier(
                     SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
@@ -400,8 +444,17 @@ public class MobEvents {
                 }
                 panicGoals.forEach(mob.goalSelector::removeGoal);
 
-                mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathMob));
-                mob.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(mob, Player.class, true));
+                // A tamed mount stays on its player's side: it no longer hunts players and never
+                // turns on one that hits it, but still fights back against mobs. A wild one keeps
+                // attacking even the player riding it, which is what makes taming it hard.
+                mob.targetSelector.addGoal(1, new HurtByTargetGoal(pathMob) {
+                    @Override
+                    public boolean canUse() {
+                        return super.canUse() && !(isTamedMount(mob) && mob.getLastHurtByMob() instanceof Player);
+                    }
+                });
+                mob.targetSelector.addGoal(2, new NearestAttackableTargetGoal<>(mob, Player.class, true,
+                    target -> !isTamedMount(mob)));
                 mob.goalSelector.addGoal(2, new MeleeAttackGoal(pathMob, 1.2, false));
             }
         }
@@ -459,15 +512,25 @@ public class MobEvents {
 
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            if (maxHealth.getModifier(HEALTH_UUID) != null) {
+                maxHealth.removeModifier(HEALTH_UUID);
+            } else if (lvlTag != null) {
+                // Leveled by a version that scaled the base value itself.
+                maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            }
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_UUID) != null) {
+        if (moveSpeed != null) {
             moveSpeed.removeModifier(SPEED_BOOST_UUID);
+            moveSpeed.removeModifier(MOUNT_SPEED_UUID);
+        }
+        AttributeInstance jump = mob.getAttribute(Attributes.JUMP_STRENGTH);
+        if (jump != null) {
+            jump.removeModifier(MOUNT_JUMP_UUID);
         }
 
         if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
@@ -478,8 +541,48 @@ public class MobEvents {
         }
     }
 
-    // Vanilla default max health for this entity type. Falls back to the current base
-    // divided by the level multiplier if the registry lookup fails.
+    // Replaces one of our permanent modifiers (this version has no addOrReplacePermanentModifier).
+    private static void setModifier(AttributeInstance attribute, UUID id, String name, double amount) {
+        attribute.removeModifier(id);
+        attribute.addPermanentModifier(new AttributeModifier(id, name, amount, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
+    }
+
+    // /summon with NBT (tags included) skips vanilla's spawn setup, so a horse, donkey, mule or
+    // llama keeps its type's placeholder stats (53 health) instead of rolled genes. Roll them
+    // now with vanilla's own formulas, as a natural spawn would have.
+    private static void rollUnrolledMount(Mob mob) {
+        if (!(mob instanceof Horse || mob instanceof AbstractChestedHorse)
+                || mob.getAttributeBaseValue(Attributes.MAX_HEALTH) != getVanillaMaxHealth(mob, -1)) {
+            return;
+        }
+        var random = mob.getRandom();
+        mob.getAttribute(Attributes.MAX_HEALTH).setBaseValue(15.0 + random.nextInt(8) + random.nextInt(9));
+        if (mob instanceof Horse) {
+            mob.getAttribute(Attributes.MOVEMENT_SPEED).setBaseValue(
+                (0.45 + random.nextDouble() * 0.3 + random.nextDouble() * 0.3 + random.nextDouble() * 0.3) * 0.25);
+            mob.getAttribute(Attributes.JUMP_STRENGTH).setBaseValue(
+                0.4 + random.nextDouble() * 0.2 + random.nextDouble() * 0.2 + random.nextDouble() * 0.2);
+        }
+    }
+
+    // How many times harder than vanilla this mob is to tame: level 150 mounts are wild.
+    public static int tameDifficulty(Mob mob) {
+        return mob instanceof AbstractHorse && getLevelFromEntity(mob) >= 150 ? LEVEL_150_TAME_DIFFICULTY : 1;
+    }
+
+    // Called with a taming vanilla already allowed (AnimalTameEvent): true to refuse it,
+    // so only 1 in tameDifficulty of vanilla's successes go through.
+    public static boolean vetoTame(Mob mob) {
+        int difficulty = tameDifficulty(mob);
+        return difficulty > 1 && mob.getRandom().nextInt(difficulty) != 0;
+    }
+
+    private static boolean isTamedMount(Mob mob) {
+        return mob instanceof AbstractHorse horse && horse.isTamed();
+    }
+
+    // Vanilla default max health for this entity type, used only to undo the base-value
+    // scaling of older versions and to spot unrolled mounts. Falls back to the given value.
     private static double getVanillaMaxHealth(Mob mob, double fallbackBase) {
         try {
             var supplier = net.minecraft.world.entity.ai.attributes.DefaultAttributes
