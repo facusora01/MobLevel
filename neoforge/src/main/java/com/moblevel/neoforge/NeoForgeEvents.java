@@ -10,6 +10,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
+import net.neoforged.neoforge.event.entity.living.AnimalTameEvent;
 import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
 import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
@@ -36,6 +37,11 @@ public class NeoForgeEvents {
     @SubscribeEvent
     static void onBabySpawn(BabyEntitySpawnEvent event) {
         MobEvents.onBabySpawn(event.getParentA(), event.getParentB(), event.getChild());
+    }
+
+    @SubscribeEvent
+    static void onTame(AnimalTameEvent event) {
+        if (MobEvents.vetoTame(event.getAnimal())) event.setCanceled(true);
     }
 
     @SubscribeEvent

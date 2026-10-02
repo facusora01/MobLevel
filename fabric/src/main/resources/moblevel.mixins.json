@@ -8,7 +8,8 @@
     "EntityMixin",
     "FoxBreedGoalMixin",
     "LivingEntityMixin",
-    "MobMixin"
+    "MobMixin",
+    "RunAroundLikeCrazyGoalMixin"
   ],
   "client": [
     "client.EntityRendererMixin"

@@ -49,6 +49,14 @@ public class DropsCalculatorTest {
         }
     }
 
+    @Test
+    public void testMountHealthMultiplierCurve() {
+        assertEquals("Level 1 = 0.5x, like other mobs", 0.5, DropsCalculator.getMountHealthMultiplier(1), 0.0001);
+        assertEquals("Level 20 = vanilla", 1.0, DropsCalculator.getMountHealthMultiplier(20), 0.0001);
+        assertEquals("Best vanilla horse (30) reaches the 25-heart cap at level 150",
+            DropsCalculator.MOUNT_MAX_HEALTH, 30 * DropsCalculator.getMountHealthMultiplier(150), 0.0001);
+    }
+
     // ---------- getDropChance (sub-vanilla scarcity) ----------
 
     @Test
