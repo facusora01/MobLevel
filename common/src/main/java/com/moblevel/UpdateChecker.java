@@ -6,12 +6,8 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.minecraft.SharedConstants;
+import com.moblevel.platform.Services;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -24,26 +20,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 // if it is newer than the installed one, tells the player in chat with a
 // clickable download link. Runs once per game session, off the main thread,
 // and stays completely silent on any failure (offline, API change, timeout).
-@EventBusSubscriber(modid = MobLevel.MODID, value = Dist.CLIENT)
+// Each loader calls check() when the client joins a world.
 public class UpdateChecker {
     private static final String PROJECT_PAGE = "https://modrinth.com/mod/mob-level/versions";
-    private static final String API_URL =
-        "https://api.modrinth.com/v2/project/mob-level/version"
-        + "?loaders=%5B%22neoforge%22%5D"
-        + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().name() + "%22%5D";
 
     private static final AtomicBoolean CHECKED = new AtomicBoolean(false);
 
-    @SubscribeEvent
-    static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+    public static void check() {
         if (!CHECKED.compareAndSet(false, true)) return;
 
-        String current = ModList.get().getModContainerById(MobLevel.MODID)
-            .map(container -> container.getModInfo().getVersion().toString())
-            .orElse("0");
+        String current = Services.PLATFORM.modVersion();
+        String apiUrl = "https://api.modrinth.com/v2/project/mob-level/version"
+            + "?loaders=%5B%22" + Services.PLATFORM.loaderName() + "%22%5D"
+            + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().name() + "%22%5D";
 
         HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(API_URL))
+            .uri(URI.create(apiUrl))
             // Modrinth API guidelines ask for an identifying User-Agent.
             .header("User-Agent", "facusora01/MobLevel/" + current)
             .timeout(Duration.ofSeconds(10))

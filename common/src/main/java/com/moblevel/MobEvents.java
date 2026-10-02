@@ -26,27 +26,18 @@ import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
-import net.neoforged.neoforge.event.entity.living.LivingDamageEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDropsEvent;
-import net.neoforged.neoforge.event.tick.EntityTickEvent;
-import net.neoforged.neoforge.event.entity.EntityJoinLevelEvent;
-import net.neoforged.neoforge.event.entity.living.LivingDeathEvent;
-import net.neoforged.neoforge.event.entity.living.LivingExperienceDropEvent;
-import net.neoforged.neoforge.event.entity.living.BabyEntitySpawnEvent;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
-import net.neoforged.bus.api.SubscribeEvent;
+import java.util.Collection;
+import com.moblevel.platform.Services;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.TickTask;
-import net.minecraft.world.item.Items;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.slf4j.Logger;
 import com.mojang.logging.LogUtils;
 
-@EventBusSubscriber(modid = MobLevel.MODID)
+// What MobLevel does to mobs. Each loader calls these from its own events or mixins,
+// passing plain vanilla objects, so the behavior is identical on every loader.
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
@@ -64,14 +55,12 @@ public class MobEvents {
     private static final DustParticleOptions PARTICLE =
         new DustParticleOptions(0x9900FF, 0.7f);
 
-    @SubscribeEvent
-    static void onEntityJoinLevel(EntityJoinLevelEvent event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
-        if (event.getLevel().isClientSide()) return;
+    public static void onEntityJoinLevel(Mob mob) {
+        if (mob.level().isClientSide()) return;
 
         // Uninstall mode: strip MobLevel data instead of applying it, so the world
         // can be returned to vanilla before the jar is removed.
-        if (Config.UNINSTALL_MODE.get()) {
+        if (Config.uninstallMode) {
             stripModData(mob);
             return;
         }
@@ -129,35 +118,27 @@ public class MobEvents {
 
     // Sends the mob's level to a player the moment their client starts tracking it.
     // Fresh spawns are covered too: tracking always starts after EntityJoinLevelEvent.
-    @SubscribeEvent
-    static void onStartTracking(net.neoforged.neoforge.event.entity.player.PlayerEvent.StartTracking event) {
-        if (!(event.getTarget() instanceof Mob mob)) return;
-        if (!(event.getEntity() instanceof ServerPlayer player)) return;
-
+    public static void onStartTracking(Mob mob, ServerPlayer player) {
         int level = getLevelFromEntity(mob);
         if (level <= 0) return;
 
-        ModMessages.sendToPlayer(player, new LevelSyncPayload(mob.getId(), level));
+        Services.PLATFORM.sendToPlayer(player, new LevelSyncPayload(mob.getId(), level));
     }
 
-    @SubscribeEvent
-    static void onBabySpawn(BabyEntitySpawnEvent event) {
-        if (Config.UNINSTALL_MODE.get()) return;
-        Mob child = event.getChild();
+    public static void onBabySpawn(Mob parentA, Mob parentB, Mob child) {
+        if (Config.uninstallMode) return;
         if (child == null) return;
         if (child.level().isClientSide()) return;
 
-        int levelA = (event.getParentA() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentA().entityTags()) : 0;
-        int levelB = (event.getParentB() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentB().entityTags()) : 0;
+        int levelA = (parentA != null) ? DropsCalculator.getLevelFromTags(parentA.entityTags()) : 0;
+        int levelB = (parentB != null) ? DropsCalculator.getLevelFromTags(parentB.entityTags()) : 0;
 
-        int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
-        int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
+        int minBonus = Config.breedingMutationMinBonus;
+        int maxBonus = Config.breedingMutationMaxBonus;
         int bonus = minBonus + RANDOM.nextInt(Math.max(1, maxBonus - minBonus + 1));
         int childLevel = BreedingCalculator.calculateChildLevel(
             levelA, levelB, RANDOM.nextDouble(),
-            Config.BREEDING_MUTATION_CHANCE.get(), bonus, Config.MAX_LEVEL.get());
+            Config.breedingMutationChance, bonus, Config.maxLevel);
 
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
@@ -166,45 +147,34 @@ public class MobEvents {
         // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
     }
 
-    @SubscribeEvent
-    static void onDamageCalculation(LivingDamageEvent.Pre event) {
-        if (event.getSource().getEntity() instanceof Mob attacker) {
+    // Returns the damage after scaling it by the attacking mob's level.
+    public static float modifyDamage(DamageSource source, float damage) {
+        if (source.getEntity() instanceof Mob attacker) {
             int level = getLevelFromEntity(attacker);
             if (level > 0) {
-                float multiplier = DropsCalculator.getDamageMultiplier(level);
-                event.setNewDamage(event.getNewDamage() * multiplier);
+                return damage * DropsCalculator.getDamageMultiplier(level);
             }
         }
+        return damage;
     }
 
-    @SubscribeEvent
-    static void onExperienceDrop(LivingExperienceDropEvent event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
+    // Returns the XP the entity drops on death, scaled by its level.
+    public static int modifyExperience(LivingEntity entity, int originalXp) {
+        if (!(entity instanceof Mob mob)) return originalXp;
         int level = getLevelFromEntity(mob);
-
-        if (level > 0) {
-            int originalXp = event.getDroppedExperience();
-            int newXp = DropsCalculator.calculateExperienceDrop(originalXp, level);
-            event.setDroppedExperience(newXp);
-
-            // LOGGER.debug("onExperienceDrop: {} | Level: {} | XP: {} -> {}",
-            //     mob.getType().getDescription().getString(), level, originalXp, newXp);
-        }
+        return level > 0 ? DropsCalculator.calculateExperienceDrop(originalXp, level) : originalXp;
     }
 
-    @SubscribeEvent
-    static void onLivingDrops(LivingDropsEvent event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
+    // Edits the death drops in place: thins them out below vanilla level, multiplies them above.
+    public static void modifyDrops(LivingEntity entity, Collection<ItemEntity> drops) {
+        if (!(entity instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
-
-        // LOGGER.debug("onLivingDrops: {} | Level: {} | Drops: {}",
-        //     mob.getType().getDescription().getString(), level, event.getDrops().size());
 
         if (level > 0) {
             if (level < DropsCalculator.VANILLA_LEVEL) {
                 // Sub-vanilla: each item rolls a drop chance; if it drops, count = 1.
                 double dropChance = DropsCalculator.getDropChance(level);
-                java.util.Iterator<ItemEntity> it = event.getDrops().iterator();
+                java.util.Iterator<ItemEntity> it = drops.iterator();
                 while (it.hasNext()) {
                     ItemEntity itemEntity = it.next();
                     if (RANDOM.nextFloat() >= dropChance) {
@@ -214,7 +184,7 @@ public class MobEvents {
                     }
                 }
             } else {
-                for (ItemEntity itemEntity : event.getDrops()) {
+                for (ItemEntity itemEntity : drops) {
                     ItemStack stack = itemEntity.getItem();
                     int originalCount = stack.getCount();
                     int newCount = DropsCalculator.calculateDropCount(originalCount, level);
@@ -229,18 +199,16 @@ public class MobEvents {
             // Level 150+ mobs have a 10% chance to drop the necklace on real death.
             // Tied to level, not the save tag, since the tag is consumed when the totem is used.
             if (level >= 150 && RANDOM.nextFloat() < 0.1f) {
-                ItemStack necklaceDrop = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+                ItemStack necklaceDrop = new ItemStack(Services.PLATFORM.totemNecklace());
                 ItemEntity dropEntity = new ItemEntity(mob.level(), mob.getX(), mob.getY(), mob.getZ(), necklaceDrop);
-                event.getDrops().add(dropEntity);
+                drops.add(dropEntity);
             }
         }
     }
 
-    @SubscribeEvent
-    static void onLivingDeath(LivingDeathEvent event) {
-        if (event.getEntity().level().isClientSide()) return;
-
-        LivingEntity entity = event.getEntity();
+    // Returns true when a totem necklace saved the entity, so the loader cancels the death.
+    public static boolean tryTotemSave(LivingEntity entity) {
+        if (entity.level().isClientSide()) return false;
 
         ItemStack headItem = entity.getItemBySlot(EquipmentSlot.HEAD);
         ItemStack mainHand = entity.getMainHandItem();
@@ -249,25 +217,23 @@ public class MobEvents {
         boolean hasTotemTag = entity.entityTags().contains("HasTotemNecklace");
         boolean hasTotemItem = false;
         try {
-            hasTotemItem = headItem.is(ModItems.TOTEM_NECKLACE.get()) ||
-                    mainHand.is(ModItems.TOTEM_NECKLACE.get()) ||
-                    offHand.is(ModItems.TOTEM_NECKLACE.get());
+            hasTotemItem = headItem.is(Services.PLATFORM.totemNecklace()) ||
+                    mainHand.is(Services.PLATFORM.totemNecklace()) ||
+                    offHand.is(Services.PLATFORM.totemNecklace());
         } catch (NullPointerException e) {
             LOGGER.warn("TOTEM_NECKLACE not registered yet, skipping death check");
-            return;
+            return false;
         }
 
         if (hasTotemTag || hasTotemItem) {
-            event.setCanceled(true);
-
             if (hasTotemTag) {
                 // Mob carries the totem as a tag (no visible item), consume it on save.
                 entity.removeTag("HasTotemNecklace");
-            } else if (headItem.is(ModItems.TOTEM_NECKLACE.get())) {
+            } else if (headItem.is(Services.PLATFORM.totemNecklace())) {
                 entity.setItemSlot(EquipmentSlot.HEAD, ItemStack.EMPTY);
-            } else if (mainHand.is(ModItems.TOTEM_NECKLACE.get())) {
+            } else if (mainHand.is(Services.PLATFORM.totemNecklace())) {
                 entity.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, ItemStack.EMPTY);
-            } else if (offHand.is(ModItems.TOTEM_NECKLACE.get())) {
+            } else if (offHand.is(Services.PLATFORM.totemNecklace())) {
                 entity.setItemInHand(net.minecraft.world.InteractionHand.OFF_HAND, ItemStack.EMPTY);
             }
 
@@ -278,21 +244,20 @@ public class MobEvents {
             entity.addEffect(new MobEffectInstance(MobEffects.ABSORPTION, 100, 1));
             entity.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 800, 0));
 
-            ItemStack visualStack = new ItemStack(ModItems.TOTEM_NECKLACE.get());
+            ItemStack visualStack = new ItemStack(Services.PLATFORM.totemNecklace());
             TotemAnimationPayload payload = new TotemAnimationPayload(entity.getId(), visualStack);
 
             if (entity instanceof ServerPlayer serverPlayer) {
-                ModMessages.sendToPlayer(serverPlayer, payload);
+                Services.PLATFORM.sendToPlayer(serverPlayer, payload);
             }
 
-            ModMessages.sendToTracking(entity, payload);
+            Services.PLATFORM.sendToTracking(entity, payload);
+            return true;
         }
+        return false;
     }
 
-    @SubscribeEvent
-    static void onEntityTick(EntityTickEvent.Post event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
-        // Do nothing on the client: names are synced automatically, particles are server-driven.
+    public static void onMobTick(Mob mob) {        // Do nothing on the client: names are synced automatically, particles are server-driven.
         if (mob.level().isClientSide()) return;
 
         // Sun-proof for level 150 burners, checked every tick (fire re-ignites each tick at
@@ -334,10 +299,10 @@ public class MobEvents {
         return LevelCalculator.rollSpawnLevel(
             mob.getRandom().nextDouble(),
             mob.getRandom().nextDouble(),
-            hostile ? Config.HOSTILE_HIGH_LEVEL_CHANCE.get() : Config.HIGH_LEVEL_CHANCE.get(),
-            hostile ? Config.HOSTILE_LEVEL_RARITY_EXPONENT.get() : Config.LEVEL_RARITY_EXPONENT.get(),
-            Config.COMMON_LEVEL_SKEW.get(),
-            Config.MAX_LEVEL.get());
+            hostile ? Config.hostileHighLevelChance : Config.highLevelChance,
+            hostile ? Config.hostileLevelRarityExponent : Config.levelRarityExponent,
+            Config.commonLevelSkew,
+            Config.maxLevel);
     }
 
     private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
@@ -412,7 +377,7 @@ public class MobEvents {
         mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
         // Clients tracking this mob already cached the old level; push the new one.
-        ModMessages.sendToTracking(mob, new LevelSyncPayload(mob.getId(), level));
+        Services.PLATFORM.sendToTracking(mob, new LevelSyncPayload(mob.getId(), level));
     }
 
     private static boolean isMigrationEnabled(Mob mob) {

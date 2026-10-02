@@ -1,10 +1,12 @@
-package com.moblevel;
+package com.moblevel.neoforge;
 
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.Identifier;
+import com.moblevel.Config;
+
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
-public class Config {
+// The moblevel-common.toml file. Its values are copied into the shared Config on load.
+public class NeoForgeConfig {
     private static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();
 
     // Two curves: hostiles (MobCategory.MONSTER) despawn and are replaced constantly, so a
@@ -84,7 +86,27 @@ public class Config {
 
     static final ModConfigSpec SPEC = BUILDER.build();
 
-    private static boolean validateItemName(final Object obj) {
-        return obj instanceof String itemName && BuiltInRegistries.ITEM.containsKey(Identifier.parse(itemName));
+    static void onLoad(ModConfigEvent.Loading event) {
+        if (event.getConfig().getSpec() == SPEC) copyToShared();
+    }
+
+    static void onReload(ModConfigEvent.Reloading event) {
+        if (event.getConfig().getSpec() == SPEC) copyToShared();
+    }
+
+    private static void copyToShared() {
+        Config.highLevelChance = HIGH_LEVEL_CHANCE.get();
+        Config.levelRarityExponent = LEVEL_RARITY_EXPONENT.get();
+        Config.hostileHighLevelChance = HOSTILE_HIGH_LEVEL_CHANCE.get();
+        Config.hostileLevelRarityExponent = HOSTILE_LEVEL_RARITY_EXPONENT.get();
+        Config.commonLevelSkew = COMMON_LEVEL_SKEW.get();
+        Config.maxLevel = MAX_LEVEL.get();
+        Config.breedingMutationChance = BREEDING_MUTATION_CHANCE.get();
+        Config.breedingMutationMinBonus = BREEDING_MUTATION_MIN_BONUS.get();
+        Config.breedingMutationMaxBonus = BREEDING_MUTATION_MAX_BONUS.get();
+        Config.uninstallMode = UNINSTALL_MODE.get();
+        Config.bossMobsHaveLevelLimits = BOSS_MOBS_HAVE_LEVEL_LIMITS.get();
+        Config.bossMinLevel = BOSS_MIN_LEVEL.get();
+        Config.bossMaxLevel = BOSS_MAX_LEVEL.get();
     }
 }

@@ -7,14 +7,13 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Entity;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 
-/** Client-only: touched exclusively from ModMessages, which never runs on a dedicated server. */
+/** Client-only: each loader calls it from its client-bound packet handler, never on a dedicated server. */
 public final class ClientPayloadHandler {
     private ClientPayloadHandler() {
     }
 
-    public static void handleTotemAnimation(TotemAnimationPayload payload, IPayloadContext context) {
+    public static void handleTotemAnimation(TotemAnimationPayload payload) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) return;
 

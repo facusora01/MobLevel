@@ -10,13 +10,13 @@ public class BossMobUtil {
     }
 
     public static int getLevelForBossMob(int baseLevel) {
-        if (!Config.BOSS_MOBS_HAVE_LEVEL_LIMITS.get()) {
+        if (!Config.bossMobsHaveLevelLimits) {
             return baseLevel;
         }
-        return clampLevel(baseLevel, Config.BOSS_MIN_LEVEL.get(), Config.BOSS_MAX_LEVEL.get());
+        return clampLevel(baseLevel, Config.bossMinLevel, Config.bossMaxLevel);
     }
 
-    /** Pure clamp logic, testable without ModConfigSpec. */
+    /** Pure clamp logic, testable without a loaded config. */
     public static int clampLevel(int baseLevel, int minLevel, int maxLevel) {
         if (baseLevel < minLevel) return minLevel;
         if (baseLevel > maxLevel) return maxLevel;

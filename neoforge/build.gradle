@@ -5,15 +5,21 @@ plugins {
     id 'idea'
 }
 
-tasks.named('wrapper', Wrapper).configure {
-    distributionType = Wrapper.DistributionType.BIN
-}
-
 version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_id}-${minecraft_version}"
+    archivesName = "${mod_id}-neoforge-${minecraft_version}"
+}
+
+// The shared code and assets compile into this jar; common/ has no build of its own.
+sourceSets.main {
+    java.srcDir rootProject.file('common/src/main/java')
+    resources.srcDir rootProject.file('common/src/main/resources')
+}
+sourceSets.test {
+    java.srcDir rootProject.file('common/src/test/java')
+    resources.srcDir rootProject.file('common/src/test/resources')
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
@@ -43,13 +49,6 @@ neoForge {
             programArgument '--nogui'
         }
 
-        data {
-            clientData()
-            gameDirectory = project.file('run-data')
-            programArguments.addAll '--mod', mod_id, '--all',
-                    '--output', file('src/generated/resources/').getAbsolutePath(),
-                    '--existing', file('src/main/resources/').getAbsolutePath()
-        }
 
         configureEach {
             logLevel = org.slf4j.event.Level.DEBUG
@@ -63,7 +62,6 @@ neoForge {
     }
 }
 
-sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenCentral()

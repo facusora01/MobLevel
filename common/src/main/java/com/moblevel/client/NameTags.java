@@ -1,7 +1,6 @@
 package com.moblevel.client;
 
 import com.moblevel.ClientLevelCache;
-import com.moblevel.MobLevel;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -15,16 +14,9 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
-import net.neoforged.neoforge.client.event.ClientTickEvent;
-import net.neoforged.neoforge.client.event.RenderNameTagEvent;
-import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
-
-@EventBusSubscriber(modid = MobLevel.MODID, value = Dist.CLIENT)
-public class ClientRenderEvents {
+// Client-only: the [LvN] nameplate and the spyglass level scanner. Each loader calls
+// onClientTick() every client tick and asks label()/visibility() while rendering a name tag.
+public class NameTags {
     // Vanilla shows mob nameplates up to 64 blocks (32 sneaking); trimmed by 25%.
     private static final double RANGE_SQ = 48.0 * 48.0;
     private static final double RANGE_DISCRETE_SQ = 24.0 * 24.0;
@@ -34,8 +26,7 @@ public class ClientRenderEvents {
     // Entity id of the mob currently under the spyglass crosshair, -1 when not scoping.
     private static int scopedMobId = -1;
 
-    @SubscribeEvent
-    static void onClientTick(ClientTickEvent.Post event) {
+    public static void onClientTick() {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (player == null || minecraft.level == null || !player.isScoping()) {
@@ -65,37 +56,35 @@ public class ClientRenderEvents {
         scopedMobId = (entityHit != null) ? entityHit.getEntity().getId() : -1;
     }
 
-    // The [LvN] label is drawn here from the synced level cache instead of living
-    // in the entity's CustomName, so vanilla naming/persistence stays untouched.
-    @SubscribeEvent
-    static void onRenderNameTag(RenderNameTagEvent.CanRender event) {
-        if (!(event.getEntity() instanceof Mob mob)) return;
+    // The [LvN] label is drawn from the synced level cache instead of living in the
+    // entity's CustomName, so vanilla naming/persistence stays untouched.
+    // Returns null for a mob with no synced level: its vanilla name tag is left alone.
+    public static Component label(Mob mob) {
+        Integer level = ClientLevelCache.get(mob.getId());
+        return level == null ? null : buildLabel(mob, level);
+    }
 
+    // Whether the mob's name tag shows. DEFAULT leaves the decision to vanilla.
+    public static TriState visibility(Mob mob) {
         Integer level = ClientLevelCache.get(mob.getId());
         double distSq = Minecraft.getInstance().getEntityRenderDispatcher().distanceToSqr(mob);
         double limitSq = mob.isDiscrete() ? RANGE_DISCRETE_SQ : RANGE_SQ;
 
         if (level == null) {
             // Not synced (vanilla-named mob, or packet not arrived yet): only trim range.
-            if (distSq > limitSq) {
-                event.setCanRender(TriState.FALSE);
-            }
-            return;
+            return distSq > limitSq ? TriState.FALSE : TriState.DEFAULT;
         }
-
-        event.setContent(buildLabel(mob, level));
 
         // Scoped target: force the label regardless of distance.
         if (scopedMobId != -1 && mob.getId() == scopedMobId) {
-            event.setCanRender(TriState.TRUE);
-            return;
+            return TriState.TRUE;
         }
 
         // Same feel as the old CustomName behavior: label shows when the crosshair
         // is on the mob within range. TRUE is required because unnamed mobs never
         // pass vanilla's shouldShowName check on their own.
         boolean targeted = Minecraft.getInstance().crosshairPickEntity == mob;
-        event.setCanRender((targeted && distSq <= limitSq) ? TriState.TRUE : TriState.FALSE);
+        return (targeted && distSq <= limitSq) ? TriState.TRUE : TriState.FALSE;
     }
 
     private static Component buildLabel(Mob mob, int level) {
@@ -113,18 +102,5 @@ public class ClientRenderEvents {
 
         return Component.literal("[Lv" + level + "] ").withStyle(color)
             .append(base.copy().withStyle(ChatFormatting.WHITE));
-    }
-
-    // Keep the cache bounded: entries die with their entity and on disconnect.
-    @SubscribeEvent
-    static void onEntityLeave(EntityLeaveLevelEvent event) {
-        if (event.getLevel().isClientSide()) {
-            ClientLevelCache.remove(event.getEntity().getId());
-        }
-    }
-
-    @SubscribeEvent
-    static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
-        ClientLevelCache.clear();
     }
 }

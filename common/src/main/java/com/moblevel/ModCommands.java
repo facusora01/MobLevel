@@ -20,10 +20,8 @@ import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
-import net.neoforged.fml.ModList;
-import net.neoforged.neoforge.event.RegisterCommandsEvent;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
+import com.mojang.brigadier.CommandDispatcher;
+import com.moblevel.platform.Services;
 
 import java.net.URI;
 import java.util.LinkedHashMap;
@@ -31,22 +29,20 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Predicate;
 
-@EventBusSubscriber(modid = MobLevel.MODID)
 public class ModCommands {
 
     // How far ahead of the player to look for the mob a report is about.
     private static final double CROSSHAIR_RANGE = 32.0;
 
-    @SubscribeEvent
-    static void onRegisterCommands(RegisterCommandsEvent event) {
-        event.getDispatcher().register(
+    public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
+        dispatcher.register(
             Commands.literal("moblevel")
                 // The permission sits on the admin subcommands, not on the root: any player
                 // has to be able to run "report".
                 .then(Commands.literal("uninstall")
                     .requires(Commands.hasPermission(Commands.LEVEL_GAMEMASTERS))
                     .executes(ctx -> {
-                        Config.UNINSTALL_MODE.set(true);
+                        Services.PLATFORM.setUninstallMode(true);
                         int total = forEachLoadedMob(ctx.getSource(), mob -> {
                             MobEvents.stripModData(mob);
                             return true;
@@ -62,7 +58,7 @@ public class ModCommands {
                     })
                     .then(Commands.literal("cancel")
                         .executes(ctx -> {
-                            Config.UNINSTALL_MODE.set(false);
+                            Services.PLATFORM.setUninstallMode(false);
                             ctx.getSource().sendSuccess(() -> Component.literal(
                                 "[MobLevel] Uninstall mode OFF. Mobs level up again on spawn.")
                                 .withStyle(ChatFormatting.YELLOW), true);
@@ -130,11 +126,9 @@ public class ModCommands {
     // What turns "it doesn't work" into something actionable.
     private static Map<String, String> diagnostics(ServerPlayer player) {
         Map<String, String> out = new LinkedHashMap<>();
-        out.put("MobLevel", ModList.get().getModContainerById(MobLevel.MODID)
-            .map(container -> container.getModInfo().getVersion().toString())
-            .orElse("unknown"));
+        out.put("MobLevel", Services.PLATFORM.modVersion());
         out.put("Minecraft", SharedConstants.getCurrentVersion().name());
-        out.put("Loader", "NeoForge");
+        out.put("Loader", Services.PLATFORM.loaderName());
         MinecraftServer server = player.level().getServer();
         out.put("Playing on", server != null && server.isDedicatedServer()
             ? "a dedicated server" : "singleplayer");
