@@ -20,6 +20,32 @@ public class DropsCalculator {
         return 0.5 + ((level - 1) / 19.0) * 0.5;
     }
 
+    // Mounts (horses, donkeys, mules, llamas, camels...) cap at 25 hearts, and are never slower
+    // than the slowest vanilla horse (a bit faster than a walking player).
+    public static final double MOUNT_MAX_HEALTH = 50.0;
+    public static final double MOUNT_MIN_SPEED = 0.1125;
+
+    // Mount health: same as getStatMultiplier up to level 20, then up to 1.67x at level 150,
+    // which takes the best vanilla horse (30 health) to MOUNT_MAX_HEALTH.
+    public static double getMountHealthMultiplier(int level) {
+        if (level < VANILLA_LEVEL) {
+            return getStatMultiplier(level);
+        }
+        return 1.0 + ((level - VANILLA_LEVEL) / 130.0) * (2.0 / 3.0);
+    }
+
+    // Mount speed/jump (horses, donkeys, llamas, camels...): lvl 1 = 0.75x, lvl 20 = 1.0x,
+    // lvl 150 = 1.5x. Much flatter than health: a 7.5x horse would outrun chunk loading.
+    public static double getMountMultiplier(int level) {
+        if (level <= 0) {
+            return 1.0;
+        }
+        if (level >= VANILLA_LEVEL) {
+            return 1.0 + ((level - VANILLA_LEVEL) / 130.0) * 0.5;
+        }
+        return 0.75 + ((level - 1) / 19.0) * 0.25;
+    }
+
     public static float getDamageMultiplier(int level) {
         if (level <= 0) {
             return 1.0f;
