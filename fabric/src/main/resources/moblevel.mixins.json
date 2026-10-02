@@ -1,0 +1,19 @@
+{
+  "required": true,
+  "package": "com.moblevel.fabric.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "mixins": [
+    "AnimalMixin",
+    "AttributeSupplierBuilderMixin",
+    "EntityMixin",
+    "FoxBreedGoalMixin",
+    "LivingEntityMixin",
+    "MobMixin"
+  ],
+  "client": [
+    "client.EntityRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

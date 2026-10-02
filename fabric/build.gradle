@@ -1,0 +1,51 @@
+plugins {
+    id 'java-library'
+    id 'net.fabricmc.fabric-loom' version '1.18.2'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = "${mod_id}-fabric-${minecraft_version}"
+}
+
+// The shared code and assets compile into this jar; common/ has no build of its own.
+// Its tests run in the neoforge build only.
+sourceSets.main {
+    java.srcDir rootProject.file('common/src/main/java')
+    resources.srcDir rootProject.file('common/src/main/resources')
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+loom {
+    accessWidenerPath = file('src/main/resources/moblevel.classtweaker')
+    runs {
+        configureEach {
+            runDir 'run'
+        }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+}
+
+processResources {
+    var replaceProperties = [
+            mod_id: mod_id, mod_name: mod_name, mod_version: mod_version, mod_authors: mod_authors,
+            mod_description: mod_description, fabric_loader_version: fabric_loader_version,
+            fabric_minecraft_version_range: fabric_minecraft_version_range,
+    ]
+    inputs.properties replaceProperties
+    filesMatching('fabric.mod.json') {
+        expand replaceProperties
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
