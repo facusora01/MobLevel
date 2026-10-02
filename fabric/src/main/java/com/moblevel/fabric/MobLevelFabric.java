@@ -14,12 +14,14 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.networking.v1.EntityTrackingEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.PlayerLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -51,7 +53,13 @@ public class MobLevelFabric implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(LevelSyncPayload.TYPE, LevelSyncPayload.STREAM_CODEC);
 
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
-            if (entity instanceof Mob mob) MobEvents.onEntityJoinLevel(mob);
+            if (!(entity instanceof Mob mob)) return;
+            MobEvents.onEntityJoinLevel(mob);
+            // Fabric fires this after nearby players already started tracking the mob, when
+            // START_TRACKING found no level to sync yet (NeoForge's order is the reverse).
+            for (ServerPlayer player : PlayerLookup.tracking(mob)) {
+                MobEvents.onStartTracking(mob, player);
+            }
         });
         EntityTrackingEvents.START_TRACKING.register((entity, player) -> {
             if (entity instanceof Mob mob) MobEvents.onStartTracking(mob, player);
