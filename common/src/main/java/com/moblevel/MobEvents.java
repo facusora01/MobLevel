@@ -41,6 +41,9 @@ import com.mojang.logging.LogUtils;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
+    // Level health scaling, as a permanent max-health modifier saved with the mob.
+    private static final Identifier HEALTH_ID =
+        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_health");
     private static final Identifier SPEED_BOOST_ID =
         Identifier.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
@@ -308,14 +311,17 @@ public class MobEvents {
     private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
-            // Recompute from the entity type's vanilla default, not the current base value:
-            // this event also fires on chunk reload, and scaling the already-scaled base
-            // would compound the multiplier on every reload.
-            double vanillaBase = getVanillaMaxHealth(mob, maxHealth.getBaseValue());
-            double newValue = vanillaBase * DropsCalculator.getStatMultiplier(level);
-            maxHealth.setBaseValue(newValue);
+            if (!freshSpawn && !maxHealth.hasModifier(HEALTH_ID)) {
+                // Saved by a version that scaled the base value itself: put the type default
+                // back first, so the multiplier below is not applied on top of the old one.
+                maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            }
+            // A modifier, not a new base value: it keeps each mob's own base health (horses roll
+            // theirs at spawn) and is replaced, never stacked, when this runs again on reload.
+            maxHealth.addOrReplacePermanentModifier(new AttributeModifier(HEALTH_ID,
+                DropsCalculator.getStatMultiplier(level) - 1.0, AttributeModifier.Operation.ADD_MULTIPLIED_BASE));
             if (freshSpawn) {
-                mob.setHealth((float) newValue);
+                mob.setHealth(mob.getMaxHealth());
             }
         }
 
@@ -403,7 +409,10 @@ public class MobEvents {
 
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
-            maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            if (!maxHealth.removeModifier(HEALTH_ID) && lvlTag != null) {
+                // Leveled by a version that scaled the base value itself.
+                maxHealth.setBaseValue(getVanillaMaxHealth(mob, maxHealth.getBaseValue()));
+            }
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
@@ -419,8 +428,8 @@ public class MobEvents {
         }
     }
 
-    // Vanilla default max health for this entity type. Falls back to the current base
-    // divided by the level multiplier if the registry lookup fails.
+    // Vanilla default max health for this entity type, used only to undo the base-value
+    // scaling of older versions. Falls back to the current base if the lookup fails.
     private static double getVanillaMaxHealth(Mob mob, double fallbackBase) {
         try {
             var supplier = net.minecraft.world.entity.ai.attributes.DefaultAttributes
