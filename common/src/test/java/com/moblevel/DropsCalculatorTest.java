@@ -34,6 +34,21 @@ public class DropsCalculatorTest {
         assertEquals("Level 0 = vanilla baseline", 1.0, DropsCalculator.getStatMultiplier(0), 0.0001);
     }
 
+    // ---------- getMountMultiplier (horse speed/jump, lvl 20 = vanilla) ----------
+
+    @Test
+    public void testMountMultiplierCurve() {
+        assertEquals("Level 1 = 0.75x", 0.75, DropsCalculator.getMountMultiplier(1), 0.0001);
+        assertEquals("Level 20 = vanilla", 1.0, DropsCalculator.getMountMultiplier(20), 0.0001);
+        assertEquals("Level 85 = 1.25x", 1.25, DropsCalculator.getMountMultiplier(85), 0.0001);
+        assertEquals("Level 150 = 1.5x", 1.5, DropsCalculator.getMountMultiplier(150), 0.0001);
+        assertEquals("Level 0 = vanilla", 1.0, DropsCalculator.getMountMultiplier(0), 0.0001);
+        for (int level = 1; level < 150; level++) {
+            assertTrue("Never decreases with level",
+                DropsCalculator.getMountMultiplier(level + 1) > DropsCalculator.getMountMultiplier(level));
+        }
+    }
+
     // ---------- getDropChance (sub-vanilla scarcity) ----------
 
     @Test

@@ -20,6 +20,18 @@ public class DropsCalculator {
         return 0.5 + ((level - 1) / 19.0) * 0.5;
     }
 
+    // Mount speed/jump (horses, donkeys, llamas, camels...): lvl 1 = 0.75x, lvl 20 = 1.0x,
+    // lvl 150 = 1.5x. Much flatter than health: a 7.5x horse would outrun chunk loading.
+    public static double getMountMultiplier(int level) {
+        if (level <= 0) {
+            return 1.0;
+        }
+        if (level >= VANILLA_LEVEL) {
+            return 1.0 + ((level - VANILLA_LEVEL) / 130.0) * 0.5;
+        }
+        return 0.75 + ((level - 1) / 19.0) * 0.25;
+    }
+
     public static float getDamageMultiplier(int level) {
         if (level <= 0) {
             return 1.0f;

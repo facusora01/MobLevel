@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.animal.equine.AbstractHorse;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
@@ -44,6 +45,11 @@ public class MobEvents {
     // Level health scaling, as a permanent max-health modifier saved with the mob.
     private static final Identifier HEALTH_ID =
         Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_health");
+    // Mount speed and jump scaling, permanent modifiers like the health one.
+    private static final Identifier MOUNT_SPEED_ID =
+        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_speed");
+    private static final Identifier MOUNT_JUMP_ID =
+        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_jump");
     private static final Identifier SPEED_BOOST_ID =
         Identifier.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
@@ -333,10 +339,23 @@ public class MobEvents {
             creeper.explosionRadius = newRadius;
         }
 
+        if (mob instanceof AbstractHorse) {
+            // Mounts: vanilla genetics roll and inherit the base values, the level scales them.
+            // Low levels make worse mounts, high levels better ones, and a horse can still be
+            // fast but weak, or a good jumper but slow, exactly as its genes say.
+            AttributeModifier.Operation op = AttributeModifier.Operation.ADD_MULTIPLIED_BASE;
+            double amount = DropsCalculator.getMountMultiplier(level) - 1.0;
+            AttributeInstance speed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (speed != null) speed.addOrReplacePermanentModifier(new AttributeModifier(MOUNT_SPEED_ID, amount, op));
+            AttributeInstance jump = mob.getAttribute(Attributes.JUMP_STRENGTH);
+            if (jump != null) jump.addOrReplacePermanentModifier(new AttributeModifier(MOUNT_JUMP_ID, amount, op));
+        }
+
         if (level >= 150) {
             // Move 1.5x faster. Transient modifier so it doesn't compound across world reloads.
+            // Mounts skip it: their level curve above already covers speed.
             AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-            if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_ID) == null) {
+            if (moveSpeed != null && !(mob instanceof AbstractHorse) && moveSpeed.getModifier(SPEED_BOOST_ID) == null) {
                 moveSpeed.addTransientModifier(new AttributeModifier(
                     SPEED_BOOST_ID, 0.5, AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL));
             }
@@ -419,8 +438,13 @@ public class MobEvents {
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
-        if (moveSpeed != null && moveSpeed.getModifier(SPEED_BOOST_ID) != null) {
+        if (moveSpeed != null) {
             moveSpeed.removeModifier(SPEED_BOOST_ID);
+            moveSpeed.removeModifier(MOUNT_SPEED_ID);
+        }
+        AttributeInstance jump = mob.getAttribute(Attributes.JUMP_STRENGTH);
+        if (jump != null) {
+            jump.removeModifier(MOUNT_JUMP_ID);
         }
 
         if (mob instanceof Creeper creeper) {
