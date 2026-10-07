@@ -437,6 +437,10 @@ public class MobEvents {
         mob.addTag("lvl:" + level);
         mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
+        // stripModData put the trades back to vanilla; scale them again for the new level.
+        if (mob instanceof AbstractVillager merchant) {
+            improveOffers(merchant, merchant.getOffers(), 0);
+        }
         // Clients tracking this mob already cached the old level; push the new one.
         Services.PLATFORM.sendToTracking(mob, new LevelSyncPayload(mob.getId(), level));
     }
@@ -459,6 +463,9 @@ public class MobEvents {
         mob.removeTag("HasTotemNecklace");
         mob.removeTag(VERSION_TAG);
         mob.removeTag(NEWBORN_TAG);
+        if (mob instanceof AbstractVillager merchant) {
+            restoreOffers(merchant);
+        }
 
         stripLevelLabel(mob);
 
@@ -555,9 +562,67 @@ public class MobEvents {
     public static void improveOffers(AbstractVillager merchant, MerchantOffers offers, int from) {
         int level = getLevelFromEntity(merchant);
         if (level <= 0) return;
+        // An offer that already has its tag was improved before: never scale it twice.
+        java.util.Set<Integer> done = new java.util.HashSet<>();
+        for (String tag : merchant.entityTags()) done.add(TradeCalculator.offerIndex(tag));
         for (int i = from; i < offers.size(); i++) {
-            offers.set(i, improveOffer(offers.get(i), level, merchant.getRandom()));
+            if (done.contains(i)) continue;
+            MerchantOffer original = offers.get(i);
+            merchant.addTag(TradeCalculator.encodeOffer(i, vanillaNumbers(original), vanillaEnchantments(original)));
+            offers.set(i, improveOffer(original, level, merchant.getRandom()));
         }
+    }
+
+    // costA, costB (0 without one), result count and max uses.
+    private static int[] vanillaNumbers(MerchantOffer offer) {
+        return new int[]{offer.getItemCostA().count(), offer.getItemCostB().map(ItemCost::count).orElse(0),
+            offer.getResult().getCount(), offer.getMaxUses()};
+    }
+
+    private static java.util.Map<String, Integer> vanillaEnchantments(MerchantOffer offer) {
+        var enchantments = EnchantmentHelper.getEnchantmentsForCrafting(offer.getResult());
+        java.util.Map<String, Integer> levels = new java.util.LinkedHashMap<>();
+        for (var enchantment : enchantments.keySet()) {
+            levels.put(enchantment.getRegisteredName(), enchantments.getLevel(enchantment));
+        }
+        return levels;
+    }
+
+    // Undoes improveOffers from the tags it left: each offer gets its vanilla numbers back,
+    // keeping how many times it has been used. Offers without a tag are already vanilla.
+    static void restoreOffers(AbstractVillager merchant) {
+        List<String> tags = merchant.entityTags().stream()
+            .filter(tag -> TradeCalculator.offerIndex(tag) >= 0).toList();
+        if (tags.isEmpty()) return;
+        MerchantOffers offers = merchant.getOffers();
+        for (String tag : tags) {
+            merchant.removeTag(tag);
+            int index = TradeCalculator.offerIndex(tag);
+            if (index >= offers.size()) continue;
+            int[] v = TradeCalculator.offerValues(tag);
+            MerchantOffer offer = offers.get(index);
+            ItemStack result = offer.getResult().copyWithCount(v[2]);
+            var levels = TradeCalculator.offerEnchantments(tag);
+            EnchantmentHelper.updateEnchantments(result, enchantments -> {
+                for (var enchantment : java.util.List.copyOf(enchantments.keySet())) {
+                    Integer level = levels.get(enchantment.getRegisteredName());
+                    if (level != null) enchantments.set(enchantment, level);
+                }
+            });
+            offers.set(index, rebuild(offer,
+                new ItemCost(offer.getItemCostA().item(), v[0], offer.getItemCostA().components()),
+                offer.getItemCostB().map(cost -> new ItemCost(cost.item(), v[1], cost.components())),
+                result, v[3]));
+        }
+    }
+
+    // Same offer with new costs, result and max uses; uses, demand and discounts carry over.
+    private static MerchantOffer rebuild(MerchantOffer offer, ItemCost costA, java.util.Optional<ItemCost> costB,
+                                         ItemStack result, int maxUses) {
+        MerchantOffer rebuilt = new MerchantOffer(costA, costB, result, Math.min(offer.getUses(), maxUses),
+            maxUses, offer.getXp(), offer.getPriceMultiplier(), offer.getDemand());
+        rebuilt.setSpecialPriceDiff(offer.getSpecialPriceDiff());
+        return rebuilt;
     }
 
     private static MerchantOffer improveOffer(MerchantOffer offer, int level, net.minecraft.util.RandomSource random) {
@@ -579,7 +644,7 @@ public class MobEvents {
         }
 
         int maxUses = Math.max(1, (int) Math.round(offer.getMaxUses() * TradeCalculator.getUsesMultiplier(level)));
-        return new MerchantOffer(costA, costB, result, maxUses, offer.getXp(), offer.getPriceMultiplier());
+        return rebuild(offer, costA, costB, result, maxUses);
     }
 
     private static ItemCost scaleCost(ItemCost cost, double multiplier, net.minecraft.util.RandomSource random) {

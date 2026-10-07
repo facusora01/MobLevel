@@ -44,6 +44,22 @@ public class TradeCalculatorTest {
     }
 
     @Test
+    public void testOfferTagRoundTrip() {
+        java.util.Map<String, Integer> enchantments = new java.util.LinkedHashMap<>();
+        enchantments.put("minecraft:sharpness", 4);
+        enchantments.put("minecraft:unbreaking", 1);
+        String tag = TradeCalculator.encodeOffer(3, new int[]{20, 0, 1, 16}, enchantments);
+        assertEquals("ml_offer:3:20,0,1,16,minecraft:sharpness=4,minecraft:unbreaking=1", tag);
+        assertEquals(3, TradeCalculator.offerIndex(tag));
+        assertArrayEquals(new int[]{20, 0, 1, 16}, TradeCalculator.offerValues(tag));
+        assertEquals(enchantments, TradeCalculator.offerEnchantments(tag));
+        assertTrue(TradeCalculator.offerEnchantments(TradeCalculator.encodeOffer(0, new int[]{1, 0, 1, 12},
+            java.util.Map.of())).isEmpty());
+        assertEquals("Other tags are not offers", -1, TradeCalculator.offerIndex("lvl:150"));
+        assertEquals("Malformed tags are ignored", -1, TradeCalculator.offerIndex("ml_offer:x"));
+    }
+
+    @Test
     public void testScaleCountStaysInStack() {
         assertEquals("Never below 1", 1, TradeCalculator.scaleCount(1, 0.5, 64, 0.9));
         assertEquals("Capped at the stack size", 64, TradeCalculator.scaleCount(40, 2.0, 64, 0.0));

@@ -35,6 +35,53 @@ public final class TradeCalculator {
         return 0;
     }
 
+    // An offer's vanilla numbers, kept in an entity tag so uninstall can restore them exactly:
+    // "ml_offer:<index>:<costA>,<costB>,<result>,<maxUses>[,<enchantment id>=<level>...]".
+    // Enchantments go by id, so restoring them never depends on their order.
+    public static final String OFFER_TAG = "ml_offer:";
+
+    public static String encodeOffer(int index, int[] values, java.util.Map<String, Integer> enchantments) {
+        StringBuilder tag = new StringBuilder(OFFER_TAG).append(index).append(':');
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) tag.append(',');
+            tag.append(values[i]);
+        }
+        enchantments.forEach((id, level) -> tag.append(',').append(id).append('=').append(level));
+        return tag.toString();
+    }
+
+    // The offer index of a tag made by encodeOffer, or -1 for any other tag.
+    public static int offerIndex(String tag) {
+        if (!tag.startsWith(OFFER_TAG)) return -1;
+        try {
+            return Integer.parseInt(tag.substring(OFFER_TAG.length(), tag.indexOf(':', OFFER_TAG.length())));
+        } catch (RuntimeException e) {
+            return -1;
+        }
+    }
+
+    // costA, costB, result count and max uses.
+    public static int[] offerValues(String tag) {
+        String[] parts = offerParts(tag);
+        int[] values = new int[4];
+        for (int i = 0; i < 4; i++) values[i] = Integer.parseInt(parts[i]);
+        return values;
+    }
+
+    // Enchantment id -> vanilla level.
+    public static java.util.Map<String, Integer> offerEnchantments(String tag) {
+        java.util.Map<String, Integer> enchantments = new java.util.LinkedHashMap<>();
+        for (String part : offerParts(tag)) {
+            int eq = part.indexOf('=');
+            if (eq > 0) enchantments.put(part.substring(0, eq), Integer.parseInt(part.substring(eq + 1)));
+        }
+        return enchantments;
+    }
+
+    private static String[] offerParts(String tag) {
+        return tag.substring(tag.indexOf(':', OFFER_TAG.length()) + 1).split(",");
+    }
+
     // Scales an item count, kept within 1..maxStack. The fraction rounds up with its own
     // probability (roll in [0, 1)), so small counts follow the multiplier on average: 1 item
     // at 1.5x is 1 or 2 half the time each, instead of always 2.
