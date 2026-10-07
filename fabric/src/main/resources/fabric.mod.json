@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "${mod_id}",
+  "version": "${mod_version}",
+  "name": "${mod_name}",
+  "description": "${mod_description}",
+  "authors": ["${mod_authors}"],
+  "contact": {
+    "homepage": "https://modrinth.com/mod/mob-level",
+    "issues": "https://github.com/facusora01/MobLevel/issues"
+  },
+  "license": "All Rights Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.moblevel.fabric.MobLevelFabric"],
+    "client": ["com.moblevel.fabric.client.MobLevelFabricClient"]
+  },
+  "mixins": ["moblevel.mixins.json", "moblevel.common.mixins.json"],
+  "accessWidener": "moblevel.classtweaker",
+  "depends": {
+    "fabricloader": ">=${fabric_loader_version}",
+    "minecraft": "${fabric_minecraft_version_range}",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
