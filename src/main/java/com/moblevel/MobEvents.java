@@ -26,7 +26,16 @@ import net.minecraft.world.entity.animal.horse.Horse;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.Zombie;
 import net.minecraft.world.entity.monster.AbstractSkeleton;
+import net.minecraft.world.entity.npc.AbstractVillager;
+import net.minecraft.world.entity.npc.Villager;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.trading.MerchantOffer;
+import net.minecraft.world.item.trading.MerchantOffers;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraftforge.event.entity.living.LivingConversionEvent;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
@@ -126,7 +135,10 @@ public class MobEvents {
         }
 
         if (currentLevel == 0) {
-            currentLevel = calculateLevel(mob);
+            currentLevel = bredVillagerLevel(mob);
+            if (currentLevel == 0) {
+                currentLevel = calculateLevel(mob);
+            }
             if (BossMobUtil.isBossMob(mob)) {
                 currentLevel = BossMobUtil.getLevelForBossMob(currentLevel);
                 // LOGGER.info("  BOSS MOB detected: {}, applying level limits: {}",
@@ -171,17 +183,7 @@ public class MobEvents {
         if (child == null) return;
         if (child.level().isClientSide()) return;
 
-        int levelA = (event.getParentA() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentA().getTags()) : 0;
-        int levelB = (event.getParentB() != null)
-            ? DropsCalculator.getLevelFromTags(event.getParentB().getTags()) : 0;
-
-        int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
-        int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
-        int bonus = minBonus + RANDOM.nextInt(Math.max(1, maxBonus - minBonus + 1));
-        int childLevel = BreedingCalculator.calculateChildLevel(
-            levelA, levelB, RANDOM.nextDouble(),
-            Config.BREEDING_MUTATION_CHANCE.get(), bonus, Config.MAX_LEVEL.get());
+        int childLevel = childLevel(event.getParentA(), event.getParentB());
 
         // Tag set here so onEntityJoinLevel respects it instead of rolling a random level
         child.addTag("lvl:" + childLevel);
@@ -189,6 +191,84 @@ public class MobEvents {
 
         // LOGGER.info("onBabySpawn: parents {}+{} -> child level {}", levelA, levelB, childLevel);
     }
+
+    // A baby's level from its parents' levels plus the breeding mutation roll.
+    private static int childLevel(Mob parentA, Mob parentB) {
+        int levelA = parentA != null ? getLevelFromEntity(parentA) : 0;
+        int levelB = parentB != null ? getLevelFromEntity(parentB) : 0;
+        int minBonus = Config.BREEDING_MUTATION_MIN_BONUS.get();
+        int maxBonus = Config.BREEDING_MUTATION_MAX_BONUS.get();
+        int bonus = minBonus + RANDOM.nextInt(Math.max(1, maxBonus - minBonus + 1));
+        return BreedingCalculator.calculateChildLevel(
+            levelA, levelB, RANDOM.nextDouble(),
+            Config.BREEDING_MUTATION_CHANCE.get(), bonus, Config.MAX_LEVEL.get());
+    }
+
+    // Villagers breed through VillagerMakeLove, which fires no BabyEntitySpawnEvent. It sets both
+    // parents' age to exactly 6000 and the child's to -24000, puts the child on the first parent
+    // and adds it to the world in the same call, so on join the parents are the adult villagers
+    // next to it whose age is still exactly 6000. Returns 0 when this isn't such a baby.
+    private static int bredVillagerLevel(Mob mob) {
+        if (!(mob instanceof Villager child) || child.getAge() != -24000) return 0;
+        List<Villager> parents = child.level().getEntitiesOfClass(Villager.class,
+            child.getBoundingBox().inflate(5), v -> v != child && v.getAge() == 6000);
+        return parents.size() >= 2 ? childLevel(parents.get(0), parents.get(1)) : 0;
+    }
+
+    // Vanilla 1.20.1 doesn't copy entity tags when a mob converts, so a cured zombie villager
+    // (or a villager turned zombie) would roll a new level. Give the new mob the old one's
+    // level, totem and saved trade numbers instead.
+    @SubscribeEvent
+    static void onConversion(LivingConversionEvent.Post event) {
+        if (Config.UNINSTALL_MODE.get()) return;
+        if (!(event.getEntity() instanceof Mob source) || !(event.getOutcome() instanceof Mob outcome)) return;
+        int level = getLevelFromEntity(source);
+        if (level <= 0) return;
+        stripModData(outcome);
+        for (String tag : source.getTags()) {
+            if (tag.startsWith("lvl:") || tag.equals(VERSION_TAG) || TradeCalculator.offerIndex(tag) >= 0) {
+                outcome.addTag(tag);
+            }
+        }
+        applyLevelStats(outcome, level, true);
+        if (!source.getTags().contains("HasTotemNecklace")) outcome.removeTag("HasTotemNecklace");
+        ModMessages.INSTANCE.send(
+            PacketDistributor.TRACKING_ENTITY.with(() -> outcome),
+            new LevelSyncPayload(outcome.getId(), level));
+    }
+
+    // Approach without mixins: Forge has no per-merchant trade event, but every trade a player
+    // can see is shown through a right click, and this event fires before the merchant opens
+    // its screen. So improve every offer not improved yet (new merchants, and trades unlocked
+    // by a level-up since the last visit), then show the level in the trading screen title.
+    @SubscribeEvent
+    static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        if (!(event.getTarget() instanceof AbstractVillager merchant) || merchant.level().isClientSide()) return;
+        if (openingTrade) return;
+        int level = getLevelFromEntity(merchant);
+        if (level <= 0) return;
+        improveOffers(merchant);
+
+        // The screen takes its title from the merchant's name, so lend it "[LvN] <name>" for the
+        // length of this click: run the whole vanilla interaction now (re-entering this event,
+        // which then lets it through) and put the name back before anything is synced or saved.
+        // If the click itself renamed the merchant (a name tag), that new name stays.
+        Component name = merchant.getCustomName();
+        Component titled = levelPrefix(level).append(merchant.getName());
+        merchant.setCustomName(titled);
+        openingTrade = true;
+        InteractionResult result;
+        try {
+            result = event.getEntity().interactOn(merchant, event.getHand());
+        } finally {
+            openingTrade = false;
+            if (merchant.getCustomName() == titled) merchant.setCustomName(name);
+        }
+        event.setCancellationResult(result);
+        event.setCanceled(true);
+    }
+
+    private static boolean openingTrade;
 
     @SubscribeEvent
     static void onTame(net.minecraftforge.event.entity.living.AnimalTameEvent event) {
@@ -433,8 +513,9 @@ public class MobEvents {
                     SPEED_BOOST_UUID, "moblevel_speed_1_5x", 0.5, AttributeModifier.Operation.MULTIPLY_TOTAL));
             }
 
-            // Aggressive toward players, regardless of mob type (cows included).
-            if (mob instanceof PathfinderMob pathMob) {
+            // Aggressive toward players, regardless of mob type (cows included). Villagers and
+            // wandering traders are left out: one that attacks you can't be traded with.
+            if (mob instanceof PathfinderMob pathMob && !(mob instanceof AbstractVillager)) {
                 // Passive mobs flee via PanicGoal when hurt; remove it so they fight instead.
                 List<PanicGoal> panicGoals = new ArrayList<>();
                 for (WrappedGoal wrapped : mob.goalSelector.getAvailableGoals()) {
@@ -483,6 +564,10 @@ public class MobEvents {
         mob.addTag("lvl:" + level);
         mob.addTag(VERSION_TAG);
         applyLevelStats(mob, level, true);
+        // stripModData put the trades back to vanilla; scale them again for the new level.
+        if (mob instanceof AbstractVillager merchant) {
+            improveOffers(merchant);
+        }
         // Clients tracking this mob already cached the old level; push the new one.
         ModMessages.INSTANCE.send(
             PacketDistributor.TRACKING_ENTITY.with(() -> mob),
@@ -507,6 +592,9 @@ public class MobEvents {
         mob.removeTag("HasTotemNecklace");
         mob.removeTag(VERSION_TAG);
         mob.removeTag(NEWBORN_TAG);
+        if (mob instanceof AbstractVillager merchant) {
+            restoreOffers(merchant);
+        }
 
         stripLevelLabel(mob);
 
@@ -613,6 +701,113 @@ public class MobEvents {
             mob.setCustomName(Component.literal(base));
         }
         mob.setCustomNameVisible(false);
+    }
+
+    // Rebuilds the offers of a villager or wandering trader so they reflect its level: cheaper,
+    // bigger, longer-lasting and better enchanted the higher it is, worse below level 20.
+    // Each improved offer keeps its vanilla numbers in an ml_offer tag on the merchant; an offer
+    // that already has one was improved before and is never scaled twice.
+    public static void improveOffers(AbstractVillager merchant) {
+        int level = getLevelFromEntity(merchant);
+        if (level <= 0) return;
+        MerchantOffers offers = merchant.getOffers();
+        java.util.Set<Integer> done = new java.util.HashSet<>();
+        for (String tag : merchant.getTags()) done.add(TradeCalculator.offerIndex(tag));
+        for (int i = 0; i < offers.size(); i++) {
+            if (done.contains(i)) continue;
+            MerchantOffer original = offers.get(i);
+            merchant.addTag(TradeCalculator.encodeOffer(i, vanillaNumbers(original), vanillaEnchantments(original)));
+            offers.set(i, improveOffer(original, level, merchant.getRandom()));
+        }
+    }
+
+    // costA, costB (0 without one), result count and max uses.
+    private static int[] vanillaNumbers(MerchantOffer offer) {
+        return new int[]{offer.getBaseCostA().getCount(), offer.getCostB().getCount(),
+            offer.getResult().getCount(), offer.getMaxUses()};
+    }
+
+    private static java.util.Map<String, Integer> vanillaEnchantments(MerchantOffer offer) {
+        java.util.Map<String, Integer> levels = new java.util.LinkedHashMap<>();
+        EnchantmentHelper.getEnchantments(offer.getResult()).forEach((enchantment, level) ->
+            levels.put(String.valueOf(BuiltInRegistries.ENCHANTMENT.getKey(enchantment)), level));
+        return levels;
+    }
+
+    // setEnchantments only ever raises a book's stored enchantments, so clear them first.
+    private static void setEnchantments(ItemStack stack, java.util.Map<Enchantment, Integer> enchantments) {
+        stack.removeTagKey("StoredEnchantments");
+        EnchantmentHelper.setEnchantments(enchantments, stack);
+    }
+
+    // Undoes improveOffers from the tags it left: each offer gets its vanilla numbers back,
+    // keeping how many times it has been used. Offers without a tag are already vanilla.
+    static void restoreOffers(AbstractVillager merchant) {
+        List<String> tags = merchant.getTags().stream()
+            .filter(tag -> TradeCalculator.offerIndex(tag) >= 0).toList();
+        if (tags.isEmpty()) return;
+        MerchantOffers offers = merchant.getOffers();
+        for (String tag : tags) {
+            merchant.removeTag(tag);
+            int index = TradeCalculator.offerIndex(tag);
+            if (index >= offers.size()) continue;
+            int[] v = TradeCalculator.offerValues(tag);
+            MerchantOffer offer = offers.get(index);
+            ItemStack result = offer.getResult().copyWithCount(v[2]);
+            var levels = TradeCalculator.offerEnchantments(tag);
+            java.util.Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(result);
+            if (!enchantments.isEmpty()) {
+                enchantments.replaceAll((enchantment, level) ->
+                    levels.getOrDefault(String.valueOf(BuiltInRegistries.ENCHANTMENT.getKey(enchantment)), level));
+                setEnchantments(result, enchantments);
+            }
+            offers.set(index, rebuild(offer, offer.getBaseCostA().copyWithCount(v[0]),
+                offer.getCostB().isEmpty() ? ItemStack.EMPTY : offer.getCostB().copyWithCount(v[1]),
+                result, v[3]));
+        }
+    }
+
+    // Same offer with new costs, result and max uses; uses, demand and discounts carry over.
+    private static MerchantOffer rebuild(MerchantOffer offer, ItemStack costA, ItemStack costB,
+                                         ItemStack result, int maxUses) {
+        MerchantOffer rebuilt = new MerchantOffer(costA, costB, result, Math.min(offer.getUses(), maxUses),
+            maxUses, offer.getXp(), offer.getPriceMultiplier(), offer.getDemand());
+        rebuilt.setSpecialPriceDiff(offer.getSpecialPriceDiff());
+        return rebuilt;
+    }
+
+    private static MerchantOffer improveOffer(MerchantOffer offer, int level, net.minecraft.util.RandomSource random) {
+        double price = TradeCalculator.getPriceMultiplier(level);
+        ItemStack costA = scaleCost(offer.getBaseCostA(), price, random);
+        ItemStack costB = offer.getCostB().isEmpty() ? ItemStack.EMPTY : scaleCost(offer.getCostB(), price, random);
+
+        ItemStack result = offer.getResult().copy();
+        result.setCount(TradeCalculator.scaleCount(result.getCount(),
+            TradeCalculator.getResultMultiplier(level), result.getMaxStackSize(), random.nextDouble()));
+        int bonus = TradeCalculator.getEnchantmentBonus(level);
+        java.util.Map<Enchantment, Integer> enchantments = EnchantmentHelper.getEnchantments(result);
+        if (bonus != 0 && !enchantments.isEmpty()) {
+            enchantments.replaceAll((enchantment, current) ->
+                Math.max(1, Math.min(enchantment.getMaxLevel(), current + bonus)));
+            setEnchantments(result, enchantments);
+        }
+
+        int maxUses = Math.max(1, (int) Math.round(offer.getMaxUses() * TradeCalculator.getUsesMultiplier(level)));
+        return rebuild(offer, costA, costB, result, maxUses);
+    }
+
+    private static ItemStack scaleCost(ItemStack cost, double multiplier, net.minecraft.util.RandomSource random) {
+        return cost.copyWithCount(TradeCalculator.scaleCount(cost.getCount(), multiplier, cost.getMaxStackSize(), random.nextDouble()));
+    }
+
+    // "[LvN] " in the level's color, shared by name tags and the trading screen.
+    public static net.minecraft.network.chat.MutableComponent levelPrefix(int level) {
+        ChatFormatting color = ChatFormatting.GREEN;
+        if (level >= 50) color = ChatFormatting.AQUA;
+        if (level >= 100) color = ChatFormatting.YELLOW;
+        if (level >= 130) color = ChatFormatting.RED;
+        if (level >= 150) color = ChatFormatting.DARK_PURPLE;
+        return Component.literal("[Lv" + level + "] ").withStyle(color);
     }
 
     private static int getLevelFromEntity(LivingEntity entity) {
