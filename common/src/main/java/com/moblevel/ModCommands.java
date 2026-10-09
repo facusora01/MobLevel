@@ -115,7 +115,7 @@ public class ModCommands {
             .append(Component.literal("[Click here to send it]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))))
+                .withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(url)))))
             .append(Component.literal(
                 "\nNothing has been sent yet. The page opens with your version and the mob "
                 + "you are looking at already filled in.")

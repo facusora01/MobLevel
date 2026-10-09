@@ -72,7 +72,7 @@ public class UpdateChecker {
             .append(Component.literal("[Download]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, PROJECT_PAGE))));
+                .withClickEvent(new ClickEvent.OpenUrl(java.net.URI.create(PROJECT_PAGE)))));
 
         player.displayClientMessage(message, false);
     }
