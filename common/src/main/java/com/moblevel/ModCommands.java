@@ -132,7 +132,7 @@ public class ModCommands {
         MinecraftServer server = player.level().getServer();
         out.put("Playing on", server != null && server.isDedicatedServer()
             ? "a dedicated server" : "singleplayer");
-        out.put("Dimension", player.level().dimension().identifier().toString());
+        out.put("Dimension", player.level().dimension().location().toString());
 
         Mob target = mobInCrosshair(player);
         if (target != null) {

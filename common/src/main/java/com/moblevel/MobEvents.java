@@ -18,19 +18,19 @@ import net.minecraft.world.entity.ai.goal.target.NearestAttackableTargetGoal;
 import net.minecraft.world.entity.ai.goal.target.HurtByTargetGoal;
 import java.util.ArrayList;
 import java.util.List;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.item.ItemEntity;
-import net.minecraft.world.entity.animal.equine.AbstractChestedHorse;
-import net.minecraft.world.entity.animal.equine.AbstractHorse;
-import net.minecraft.world.entity.animal.equine.Horse;
+import net.minecraft.world.entity.animal.horse.AbstractChestedHorse;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
+import net.minecraft.world.entity.animal.horse.Horse;
 import net.minecraft.world.entity.monster.Creeper;
-import net.minecraft.world.entity.npc.villager.AbstractVillager;
+import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
-import net.minecraft.world.entity.monster.zombie.Zombie;
-import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
+import net.minecraft.world.entity.monster.Zombie;
+import net.minecraft.world.entity.monster.AbstractSkeleton;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -50,15 +50,15 @@ public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
     // Level health scaling, as a permanent max-health modifier saved with the mob.
-    private static final Identifier HEALTH_ID =
-        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_health");
+    private static final ResourceLocation HEALTH_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "level_health");
     // Mount speed and jump scaling, permanent modifiers like the health one.
-    private static final Identifier MOUNT_SPEED_ID =
-        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_speed");
-    private static final Identifier MOUNT_JUMP_ID =
-        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_jump");
-    private static final Identifier SPEED_BOOST_ID =
-        Identifier.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
+    private static final ResourceLocation MOUNT_SPEED_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "level_speed");
+    private static final ResourceLocation MOUNT_JUMP_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "level_jump");
+    private static final ResourceLocation SPEED_BOOST_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
     static final String VERSION_TAG = "ml2";
     // Per-world scoreboard objective that turns the one-time level migration on.

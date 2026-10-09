@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
 // Foxes breed through their own goal instead of Animal.spawnChildFromBreeding.
-@Mixin(targets = "net.minecraft.world.entity.animal.fox.Fox$FoxBreedGoal")
+@Mixin(targets = "net.minecraft.world.entity.animal.Fox$FoxBreedGoal")
 abstract class FoxBreedGoalMixin extends BreedGoal {
     private FoxBreedGoalMixin(Animal animal, double speedModifier) {
         super(animal, speedModifier);

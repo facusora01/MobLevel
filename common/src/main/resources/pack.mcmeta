@@ -1,7 +1,8 @@
 {
   "pack": {
     "description": "MobLevel Resources",
-    "min_format": [107, 1],
-    "max_format": [107, 1]
+    "pack_format": 69,
+    "min_format": 69,
+    "max_format": 69
   }
 }

@@ -4,7 +4,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 /**
  * Server -> client: "entity {@code entityId} has level {@code level}". Sent when a player
@@ -13,7 +13,7 @@ import net.minecraft.resources.Identifier;
 public record LevelSyncPayload(int entityId, int level) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<LevelSyncPayload> TYPE =
-        new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_sync"));
+        new CustomPacketPayload.Type<>(ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "level_sync"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, LevelSyncPayload> STREAM_CODEC =
         StreamCodec.composite(

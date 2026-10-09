@@ -5,4 +5,4 @@ accessible field net/minecraft/world/entity/monster/Creeper explosionRadius I
 accessible field net/minecraft/world/entity/Mob goalSelector Lnet/minecraft/world/entity/ai/goal/GoalSelector;
 accessible field net/minecraft/world/entity/Mob targetSelector Lnet/minecraft/world/entity/ai/goal/GoalSelector;
 # Unrolled mounts (summoned with NBT) get vanilla genetics from MobLevel.
-accessible method net/minecraft/world/entity/animal/equine/AbstractHorse randomizeAttributes (Lnet/minecraft/util/RandomSource;)V
+accessible method net/minecraft/world/entity/animal/horse/AbstractHorse randomizeAttributes (Lnet/minecraft/util/RandomSource;)V

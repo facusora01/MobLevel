@@ -19,7 +19,7 @@ import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -30,7 +30,7 @@ import net.minecraft.world.item.ItemStack;
 // breeding, mob tick, attributes, name tags) are mixins in the mixin package.
 public class MobLevelFabric implements ModInitializer {
     static final ResourceKey<Item> TOTEM_NECKLACE_KEY =
-        ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(MobLevel.MODID, "totem_necklace"));
+        ResourceKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "totem_necklace"));
     static Item totemNecklace;
 
     @Override
@@ -42,7 +42,7 @@ public class MobLevelFabric implements ModInitializer {
         totemNecklace = Registry.register(BuiltInRegistries.ITEM, TOTEM_NECKLACE_KEY,
             new Item(new Item.Properties().setId(TOTEM_NECKLACE_KEY).stacksTo(1)));
         Registry.register(BuiltInRegistries.CREATIVE_MODE_TAB,
-            Identifier.fromNamespaceAndPath(MobLevel.MODID, "mob_level_tab"),
+            ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "mob_level_tab"),
             FabricItemGroup.builder()
                 .title(Component.literal("MobLevel"))
                 .icon(() -> new ItemStack(totemNecklace))

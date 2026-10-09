@@ -4,7 +4,7 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.moblevel.MobEvents;
 
 import net.minecraft.world.entity.ai.goal.RunAroundLikeCrazyGoal;
-import net.minecraft.world.entity.animal.equine.AbstractHorse;
+import net.minecraft.world.entity.animal.horse.AbstractHorse;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -20,7 +20,7 @@ abstract class RunAroundLikeCrazyGoalMixin {
     private AbstractHorse horse;
 
     @ModifyExpressionValue(method = "tick",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/equine/AbstractHorse;getMaxTemper()I"))
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/animal/horse/AbstractHorse;getMaxTemper()I"))
     private int moblevel$harderToTame(int maxTemper) {
         return maxTemper * MobEvents.tameDifficulty(horse);
     }

@@ -5,7 +5,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.moblevel.MobEvents;
 
 import net.minecraft.world.entity.ai.behavior.VillagerMakeLove;
-import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.Villager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(VillagerMakeLove.class)
 abstract class VillagerMakeLoveMixin {
     @ModifyExpressionValue(method = "breed",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/npc/villager/Villager;getBreedOffspring(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/AgeableMob;)Lnet/minecraft/world/entity/npc/villager/Villager;"))
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/npc/Villager;getBreedOffspring(Lnet/minecraft/server/level/ServerLevel;Lnet/minecraft/world/entity/AgeableMob;)Lnet/minecraft/world/entity/npc/Villager;"))
     private Villager moblevel$levelChild(Villager child,
                                          @Local(argsOnly = true, ordinal = 0) Villager source,
                                          @Local(argsOnly = true, ordinal = 1) Villager target) {
