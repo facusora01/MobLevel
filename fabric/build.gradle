@@ -12,10 +12,14 @@ base {
 }
 
 // The shared code and assets compile into this jar; common/ has no build of its own.
-// Its tests run in the neoforge build only.
 sourceSets.main {
     java.srcDir rootProject.file('common/src/main/java')
     resources.srcDir rootProject.file('common/src/main/resources')
+}
+
+sourceSets.test {
+    java.srcDir rootProject.file('common/src/test/java')
+    resources.srcDir rootProject.file('common/src/test/resources')
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
@@ -34,6 +38,10 @@ dependencies {
     mappings loom.officialMojangMappings()
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.mockito:mockito-core:5.20.0'
+    testImplementation 'ch.qos.logback:logback-classic:1.5.18'
+    testImplementation 'org.slf4j:slf4j-api:2.0.17'
 }
 
 processResources {
