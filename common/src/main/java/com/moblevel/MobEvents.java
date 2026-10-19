@@ -26,6 +26,8 @@ import net.minecraft.world.entity.animal.horse.Horse;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.npc.AbstractVillager;
 import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.world.item.trading.ItemCost;
 import net.minecraft.world.item.trading.MerchantOffer;
 import net.minecraft.world.item.trading.MerchantOffers;
@@ -284,7 +286,7 @@ public class MobEvents {
         // selective first: the 1-in-thousands level check runs before the heightmap lookup
         // in canSeeSky, so a horde of ordinary burning zombies costs almost nothing extra.
         if (mob.isOnFire() && (mob instanceof Zombie || mob instanceof AbstractSkeleton)
-                && mob.level().isDay()
+                && !mob.level().dimensionType().hasFixedTime() && mob.level().getSkyDarken() < 4
                 && getLevelFromEntity(mob) >= 150
                 && mob.level().canSeeSky(mob.blockPosition())) {
             mob.clearFire();
@@ -610,8 +612,8 @@ public class MobEvents {
                 }
             });
             offers.set(index, rebuild(offer,
-                new ItemCost(offer.getItemCostA().item(), v[0], offer.getItemCostA().components()),
-                offer.getItemCostB().map(cost -> new ItemCost(cost.item(), v[1], cost.components())),
+                withCount(offer.getItemCostA(), v[0]),
+                offer.getItemCostB().map(cost -> withCount(cost, v[1])),
                 result, v[3]));
         }
     }
@@ -649,7 +651,16 @@ public class MobEvents {
 
     private static ItemCost scaleCost(ItemCost cost, double multiplier, net.minecraft.util.RandomSource random) {
         int count = TradeCalculator.scaleCount(cost.count(), multiplier, cost.itemStack().getMaxStackSize(), random.nextDouble());
-        return new ItemCost(cost.item(), count, cost.components());
+        return withCount(cost, count);
+    }
+
+    // ItemCost.components() and the constructor changed type in 1.21.5, so the jar can't call
+    // them and still load there; the codec is the same on every version.
+    private static ItemCost withCount(ItemCost cost, int count) {
+        if (cost.count() == count) return cost;
+        CompoundTag tag = (CompoundTag) ItemCost.CODEC.encodeStart(NbtOps.INSTANCE, cost).getOrThrow();
+        tag.putInt("count", count);
+        return ItemCost.CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
     }
 
     // Trading screen title: "[Lv87] Librarian".

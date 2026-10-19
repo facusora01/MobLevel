@@ -4,9 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonParser;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.SharedConstants;
 import com.moblevel.platform.Services;
 
 import java.net.URI;
@@ -32,7 +30,7 @@ public class UpdateChecker {
         String current = Services.PLATFORM.modVersion();
         String apiUrl = "https://api.modrinth.com/v2/project/mob-level/version"
             + "?loaders=%5B%22" + Services.PLATFORM.loaderName() + "%22%5D"
-            + "&game_versions=%5B%22" + SharedConstants.getCurrentVersion().getName() + "%22%5D";
+            + "&game_versions=%5B%22" + Compat.gameVersion() + "%22%5D";
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(apiUrl))
@@ -72,7 +70,7 @@ public class UpdateChecker {
             .append(Component.literal("[Download]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, PROJECT_PAGE))));
+                .withClickEvent(Compat.openUrl(PROJECT_PAGE))));
 
         player.displayClientMessage(message, false);
     }

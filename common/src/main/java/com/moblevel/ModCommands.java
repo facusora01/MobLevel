@@ -4,10 +4,8 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.ChatFormatting;
-import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -115,7 +113,7 @@ public class ModCommands {
             .append(Component.literal("[Click here to send it]").withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
                 .withUnderlined(true)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.OPEN_URL, url))))
+                .withClickEvent(Compat.openUrl(url))))
             .append(Component.literal(
                 "\nNothing has been sent yet. The page opens with your version and the mob "
                 + "you are looking at already filled in.")
@@ -127,7 +125,7 @@ public class ModCommands {
     private static Map<String, String> diagnostics(ServerPlayer player) {
         Map<String, String> out = new LinkedHashMap<>();
         out.put("MobLevel", Services.PLATFORM.modVersion());
-        out.put("Minecraft", SharedConstants.getCurrentVersion().getName());
+        out.put("Minecraft", Compat.gameVersion());
         out.put("Loader", Services.PLATFORM.loaderName());
         MinecraftServer server = player.level().getServer();
         out.put("Playing on", server != null && server.isDedicatedServer()

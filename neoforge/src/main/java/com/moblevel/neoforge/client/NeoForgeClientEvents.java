@@ -5,8 +5,10 @@ import com.moblevel.MobLevel;
 import com.moblevel.UpdateChecker;
 import com.moblevel.client.NameTags;
 
+import java.lang.reflect.Method;
+import java.util.Arrays;
+
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.common.util.TriState;
 import net.minecraft.world.entity.Mob;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -31,7 +33,23 @@ public class NeoForgeClientEvents {
         if (label != null) event.setContent(label);
 
         Boolean visibility = NameTags.visibility(mob);
-        if (visibility != null) event.setCanRender(visibility ? TriState.TRUE : TriState.FALSE);
+        if (visibility != null) setCanRender(event, visibility);
+    }
+
+    // The TriState parameter is net.neoforged.neoforge.common.util.TriState up to 1.21.4 and
+    // net.minecraft.util.TriState from 1.21.5, so the setter is looked up instead of named.
+    private static final Method SET_CAN_RENDER = Arrays.stream(RenderNameTagEvent.CanRender.class.getMethods())
+        .filter(m -> m.getName().equals("setCanRender")).findFirst().orElse(null);
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void setCanRender(RenderNameTagEvent.CanRender event, boolean show) {
+        if (SET_CAN_RENDER == null) return;
+        try {
+            SET_CAN_RENDER.invoke(event, Enum.valueOf((Class<Enum>) SET_CAN_RENDER.getParameterTypes()[0],
+                show ? "TRUE" : "FALSE"));
+        } catch (ReflectiveOperationException ignored) {
+            // name tags fall back to vanilla visibility
+        }
     }
 
     // Keep the cache bounded: entries die with their entity and on disconnect.
