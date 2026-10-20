@@ -32,3 +32,8 @@ repo
 
 MobLevel-main/
 src/test/java/com/moblevel/logs/
+# local tooling and build leftovers
+.claude/
+logs/
+build_*.txt
+/com/
