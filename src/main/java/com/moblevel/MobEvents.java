@@ -71,6 +71,8 @@ public class MobEvents {
     private static final UUID MOUNT_JUMP_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e62");
     // Taming a level 150 mount succeeds this many times less often than vanilla.
     static final int LEVEL_150_TAME_DIFFICULTY = 5;
+    // Optional armor scaling above the vanilla level (Config.ARMOR_ENABLED).
+    private static final UUID ARMOR_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e63");
     private static final UUID SPEED_BOOST_UUID = UUID.fromString("b7a1f3c2-0d4e-4a8b-9c6d-2e1f5a3b7c90");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
     static final String VERSION_TAG = "ml2";
@@ -493,6 +495,16 @@ public class MobEvents {
             if (jump != null) setModifier(jump, MOUNT_JUMP_UUID, "moblevel_level_jump", mult - 1.0);
         }
 
+        if (Config.ARMOR_ENABLED.get() && !(mob instanceof AbstractHorse)) {
+            AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+            double bonus = DropsCalculator.getArmorBonus(level);
+            if (armor != null && bonus > 0) {
+                armor.removeModifier(ARMOR_UUID);
+                armor.addPermanentModifier(new AttributeModifier(ARMOR_UUID,
+                    "moblevel_level_armor", bonus, AttributeModifier.Operation.ADD_VALUE));
+            }
+        }
+
         if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
@@ -610,6 +622,11 @@ public class MobEvents {
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
+        }
+
+        AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+        if (armor != null) {
+            armor.removeModifier(ARMOR_UUID);
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);

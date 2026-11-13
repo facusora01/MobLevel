@@ -119,6 +119,19 @@ public class Config {
             .comment("Extra XP multiplier added at maxLevel.")
             .defineInRange("maxLevelXpBonus", 2.0, 0.0, 100.0);
 
+    public static final ForgeConfigSpec.BooleanValue ARMOR_ENABLED = BUILDER
+            .comment("Give mobs above vanillaLevel extra armor: (level - vanillaLevel) * armorPerLevel.",
+                    "Mounts are skipped.")
+            .define("armorEnabled", false);
+
+    public static final ForgeConfigSpec.DoubleValue ARMOR_PER_LEVEL = BUILDER
+            .comment("Armor points added per level above vanillaLevel (when armorEnabled).")
+            .defineInRange("armorPerLevel", 0.1, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue ARMOR_MAX = BUILDER
+            .comment("Cap on the extra armor points (vanilla armor maxes out at 30).")
+            .defineInRange("armorMax", 20.0, 0.0, 30.0);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     // Copies the loaded values into the calculators; called on config load and reload.
@@ -133,6 +146,8 @@ public class Config {
         DropsCalculator.xpPerLevel = XP_PER_LEVEL.get();
         DropsCalculator.maxLevelXpBonus = MAX_LEVEL_XP_BONUS.get();
         DropsCalculator.maxLevel = MAX_LEVEL.get();
+        DropsCalculator.armorPerLevel = ARMOR_PER_LEVEL.get();
+        DropsCalculator.armorMax = ARMOR_MAX.get();
     }
 
     private static boolean validateItemName(final Object obj) {
