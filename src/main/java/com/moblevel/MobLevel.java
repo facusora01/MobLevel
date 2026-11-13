@@ -7,6 +7,7 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
+import net.neoforged.fml.event.config.ModConfigEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.neoforged.neoforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraft.world.entity.EntityType;
@@ -29,6 +30,8 @@ public class MobLevel {
             LOGGER.error("Failed to register config", e);
         }
 
+        modEventBus.addListener((ModConfigEvent.Loading e) -> Config.bake());
+        modEventBus.addListener((ModConfigEvent.Reloading e) -> Config.bake());
         modEventBus.addListener(this::onCommonSetup);
         modEventBus.addListener(this::onAttributeModify);
     }

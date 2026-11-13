@@ -82,6 +82,56 @@ public class Config {
             .comment("Maximum level for boss mobs (Dragon, Wither, etc.)")
             .defineInRange("bossMaxLevel", 80, 1, 1000);
 
+    public static final ModConfigSpec.IntValue VANILLA_LEVEL = BUILDER
+            .comment("Level at which a mob's health, damage, loot and XP equal vanilla.",
+                    "Below it mobs are weaker, above it they scale up.")
+            .defineInRange("vanillaLevel", 20, 2, 1000);
+
+    public static final ModConfigSpec.DoubleValue LOW_LEVEL_STAT_MULTIPLIER = BUILDER
+            .comment("Health and damage multiplier at level 1, ramping linearly to 1.0 at vanillaLevel.")
+            .defineInRange("lowLevelStatMultiplier", 0.5, 0.01, 1.0);
+
+    public static final ModConfigSpec.DoubleValue HEALTH_PER_LEVEL = BUILDER
+            .comment("Health multiplier added per level above vanillaLevel. 0.05 = +5% per level.")
+            .defineInRange("healthPerLevel", 0.05, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue DAMAGE_PER_LEVEL = BUILDER
+            .comment("Damage multiplier added per level above vanillaLevel. 0.02 = +2% per level.")
+            .defineInRange("damagePerLevel", 0.02, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue LOW_LEVEL_DROP_CHANCE = BUILDER
+            .comment("Drop chance (0.0 to 1.0) at level 1, ramping linearly to 1.0 at vanillaLevel.")
+            .defineInRange("lowLevelDropChance", 0.25, 0.0, 1.0);
+
+    public static final ModConfigSpec.DoubleValue LOOT_PER_LEVEL = BUILDER
+            .comment("Extra drop count multiplier per level above vanillaLevel. 0.02 = +2% per level.")
+            .defineInRange("lootPerLevel", 0.02, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue MAX_LEVEL_LOOT_BONUS = BUILDER
+            .comment("Extra loot multiplier added for mobs at maxLevel or above.")
+            .defineInRange("maxLevelLootBonus", 3.0, 0.0, 100.0);
+
+    public static final ModConfigSpec.DoubleValue XP_PER_LEVEL = BUILDER
+            .comment("Extra XP multiplier per level above vanillaLevel. 0.01 = +1% per level.")
+            .defineInRange("xpPerLevel", 0.01, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue MAX_LEVEL_XP_BONUS = BUILDER
+            .comment("Extra XP multiplier added for mobs at maxLevel or above.")
+            .defineInRange("maxLevelXpBonus", 2.0, 0.0, 100.0);
+
+    public static void bake() {
+        Live.maxLevel = MAX_LEVEL.get();
+        Live.vanillaLevel = VANILLA_LEVEL.get();
+        Live.lowLevelStatMultiplier = LOW_LEVEL_STAT_MULTIPLIER.get();
+        Live.healthPerLevel = HEALTH_PER_LEVEL.get();
+        Live.damagePerLevel = DAMAGE_PER_LEVEL.get();
+        Live.lowLevelDropChance = LOW_LEVEL_DROP_CHANCE.get();
+        Live.lootPerLevel = LOOT_PER_LEVEL.get();
+        Live.maxLevelLootBonus = MAX_LEVEL_LOOT_BONUS.get();
+        Live.xpPerLevel = XP_PER_LEVEL.get();
+        Live.maxLevelXpBonus = MAX_LEVEL_XP_BONUS.get();
+    }
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     private static boolean validateItemName(final Object obj) {

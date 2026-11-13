@@ -58,7 +58,7 @@ public class MobEventsTest {
         for (int level = 20; level <= 140; level += 10) {
             int xp = DropsCalculator.calculateExperienceDrop(originalXp, level);
             double multiplier = (double) xp / originalXp;
-            double expectedMultiplier = 1.0 + ((level - DropsCalculator.VANILLA_LEVEL) * 0.01);
+            double expectedMultiplier = 1.0 + ((level - 20) * 0.01);
 
             assertEquals("Level " + level + " multiplier should be " + expectedMultiplier,
                     expectedMultiplier, multiplier, 0.01);
