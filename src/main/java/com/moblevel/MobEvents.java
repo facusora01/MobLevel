@@ -66,6 +66,7 @@ public class MobEvents {
     private static final Random RANDOM = new Random();
     // Level health and mount speed/jump scaling, permanent modifiers saved with the mob.
     private static final UUID HEALTH_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e60");
+    private static final UUID ARMOR_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e63");
     private static final UUID MOUNT_SPEED_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e61");
     private static final UUID MOUNT_JUMP_UUID = UUID.fromString("5f0c2a8e-6b1d-4c7a-9e3f-1a2b3c4d5e62");
     // Taming a level 150 mount succeeds this many times less often than vanilla.
@@ -496,6 +497,18 @@ public class MobEvents {
             if (jump != null) setModifier(jump, MOUNT_JUMP_UUID, "moblevel_level_jump", mult - 1.0);
         }
 
+        if (Config.ARMOR_ENABLED.get() && !(mob instanceof AbstractHorse)) {
+            AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+            double bonus = DropsCalculator.getArmorBonus(level);
+            if (armor != null) {
+                armor.removeModifier(ARMOR_UUID);
+                if (bonus > 0) {
+                    armor.addPermanentModifier(new AttributeModifier(ARMOR_UUID, "moblevel_level_armor",
+                        bonus, AttributeModifier.Operation.ADDITION));
+                }
+            }
+        }
+
         if (mob instanceof Creeper creeper && CREEPER_EXPLOSION_RADIUS != null) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
@@ -613,6 +626,11 @@ public class MobEvents {
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
+        }
+
+        AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+        if (armor != null) {
+            armor.removeModifier(ARMOR_UUID);
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
