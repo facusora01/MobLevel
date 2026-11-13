@@ -53,6 +53,9 @@ final class FabricConfig {
         Config.armorEnabled = bool(p, "armorEnabled", Config.armorEnabled);
         Config.armorPerLevel = number(p, "armorPerLevel", Config.armorPerLevel, 0.0, 10.0);
         Config.armorMax = number(p, "armorMax", Config.armorMax, 0.0, 30.0);
+        Config.distanceScalingEnabled = bool(p, "distanceScalingEnabled", Config.distanceScalingEnabled);
+        Config.blocksPerLevel = (int) number(p, "blocksPerLevel", Config.blocksPerLevel, 1, 1000000);
+        Config.distanceMaxBonus = (int) number(p, "distanceMaxBonus", Config.distanceMaxBonus, 0, 1000);
         // Rewrite so missing keys show up with their comments and bad values get corrected.
         save();
     }
@@ -150,6 +153,16 @@ final class FabricConfig {
 
             # Cap on the armor bonus, in armor points. Range 0.0 to 30.0.
             armorMax=%s
+
+            # Raise the level of newly spawned mobs the farther they are from the world spawn.
+            # Does not apply to bred offspring.
+            distanceScalingEnabled=%s
+
+            # Horizontal blocks from world spawn per extra level. Range 1 to 1000000.
+            blocksPerLevel=%d
+
+            # Maximum levels the distance bonus can add; the result never exceeds maxLevel. Range 0 to 1000.
+            distanceMaxBonus=%d
             """.formatted(
                 Config.highLevelChance, Config.levelRarityExponent,
                 Config.hostileHighLevelChance, Config.hostileLevelRarityExponent,
@@ -159,7 +172,8 @@ final class FabricConfig {
                 Config.vanillaLevel, Config.lowLevelStatMultiplier, Config.healthPerLevel, Config.damagePerLevel,
                 Config.lowLevelDropChance, Config.lootPerLevel, Config.maxLevelLootBonus,
                 Config.xpPerLevel, Config.maxLevelXpBonus,
-                Config.armorEnabled, Config.armorPerLevel, Config.armorMax);
+                Config.armorEnabled, Config.armorPerLevel, Config.armorMax,
+                Config.distanceScalingEnabled, Config.blocksPerLevel, Config.distanceMaxBonus);
         try {
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, text);
