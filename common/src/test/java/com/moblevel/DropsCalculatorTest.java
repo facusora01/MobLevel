@@ -229,6 +229,17 @@ public class DropsCalculatorTest {
         Config.xpPerLevel = 0.01;
         Config.maxLevelXpBonus = 2.0;
         Config.maxLevel = 150;
+        Config.armorPerLevel = 0.1;
+        Config.armorMax = 20.0;
+    }
+
+    @Test
+    public void testArmorBonus() {
+        assertEquals(0.0, DropsCalculator.getArmorBonus(20), 0.0001);
+        assertEquals(5.0, DropsCalculator.getArmorBonus(70), 0.0001);
+        assertEquals(13.0, DropsCalculator.getArmorBonus(150), 0.0001);
+        Config.armorPerLevel = 1.0;
+        assertEquals(20.0, DropsCalculator.getArmorBonus(150), 0.0001);
     }
 
     @Test
