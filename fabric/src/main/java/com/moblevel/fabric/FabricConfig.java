@@ -50,6 +50,9 @@ final class FabricConfig {
         Config.maxLevelLootBonus = number(p, "maxLevelLootBonus", Config.maxLevelLootBonus, 0.0, 100.0);
         Config.xpPerLevel = number(p, "xpPerLevel", Config.xpPerLevel, 0.0, 10.0);
         Config.maxLevelXpBonus = number(p, "maxLevelXpBonus", Config.maxLevelXpBonus, 0.0, 100.0);
+        Config.armorEnabled = bool(p, "armorEnabled", Config.armorEnabled);
+        Config.armorPerLevel = number(p, "armorPerLevel", Config.armorPerLevel, 0.0, 10.0);
+        Config.armorMax = number(p, "armorMax", Config.armorMax, 0.0, 30.0);
         // Rewrite so missing keys show up with their comments and bad values get corrected.
         save();
     }
@@ -138,6 +141,15 @@ final class FabricConfig {
 
             # Extra XP multiplier for mobs at maxLevel or above. Range 0.0 to 100.0.
             maxLevelXpBonus=%s
+
+            # Give mobs above vanillaLevel bonus armor that grows with their level.
+            armorEnabled=%s
+
+            # Armor points added per level above vanillaLevel. Range 0.0 to 10.0.
+            armorPerLevel=%s
+
+            # Cap on the armor bonus, in armor points. Range 0.0 to 30.0.
+            armorMax=%s
             """.formatted(
                 Config.highLevelChance, Config.levelRarityExponent,
                 Config.hostileHighLevelChance, Config.hostileLevelRarityExponent,
@@ -146,7 +158,8 @@ final class FabricConfig {
                 Config.uninstallMode, Config.bossMobsHaveLevelLimits, Config.bossMinLevel, Config.bossMaxLevel,
                 Config.vanillaLevel, Config.lowLevelStatMultiplier, Config.healthPerLevel, Config.damagePerLevel,
                 Config.lowLevelDropChance, Config.lootPerLevel, Config.maxLevelLootBonus,
-                Config.xpPerLevel, Config.maxLevelXpBonus);
+                Config.xpPerLevel, Config.maxLevelXpBonus,
+                Config.armorEnabled, Config.armorPerLevel, Config.armorMax);
         try {
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, text);

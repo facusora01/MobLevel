@@ -49,6 +49,14 @@ public class DropsCalculator {
         return 0.75 + ((level - 1) / 19.0) * 0.25;
     }
 
+    // Extra armor points above the vanilla level, capped at Config.armorMax.
+    public static double getArmorBonus(int level) {
+        if (level <= Config.vanillaLevel) {
+            return 0.0;
+        }
+        return Math.min((level - Config.vanillaLevel) * Config.armorPerLevel, Config.armorMax);
+    }
+
     public static float getDamageMultiplier(int level) {
         if (level <= 0) {
             return 1.0f;
