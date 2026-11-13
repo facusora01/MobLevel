@@ -9,6 +9,7 @@ import net.minecraftforge.fml.ModLoadingContext;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.event.entity.EntityAttributeModificationEvent;
 import net.minecraft.world.entity.EntityType;
@@ -36,6 +37,9 @@ public class MobLevel {
 
         modEventBus.addListener(this::onCommonSetup);
         modEventBus.addListener(this::onAttributeModify);
+        modEventBus.addListener((ModConfigEvent event) -> {
+            if (event.getConfig().getSpec() == Config.SPEC) Config.sync();
+        });
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {

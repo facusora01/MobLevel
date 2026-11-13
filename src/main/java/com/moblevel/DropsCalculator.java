@@ -3,21 +3,37 @@ package com.moblevel;
 import java.util.Set;
 
 public class DropsCalculator {
-    private static final double LOOT_MULTIPLIER_PER_LEVEL = 0.02;
-    private static final double LEVEL_150_BONUS = 3.0;
-
-    // Stats equal vanilla at this level; below is weaker, above scales up.
+    // Mounts and trades keep this fixed level. The configurable vanillaLevel below only
+    // drives the health/damage/loot/XP math.
     public static final int VANILLA_LEVEL = 20;
 
-    // Health/damage: lvl 1 = 0.5x, lvl 20 = 1.0x, lvl 80 = 4.0x, lvl 150 = 7.5x.
+    // Tunables, defaults = original balance. Copied from Config.SPEC by Config.sync() on
+    // config load/reload (plain fields so the maths stays unit-testable without Forge).
+    public static int vanillaLevel = 20;
+    public static double lowLevelStatMultiplier = 0.5;
+    public static double healthPerLevel = 0.05;
+    public static double damagePerLevel = 0.02;
+    public static double lowLevelDropChance = 0.25;
+    public static double lootPerLevel = 0.02;
+    public static double maxLevelLootBonus = 3.0;
+    public static double xpPerLevel = 0.01;
+    public static double maxLevelXpBonus = 2.0;
+    public static int maxLevel = 150;
+
+    // Health/damage with the default config: lvl 1 = 0.5x, lvl 20 = 1.0x, lvl 80 = 4.0x, lvl 150 = 7.5x.
     public static double getStatMultiplier(int level) {
         if (level <= 0) {
             return 1.0;
         }
-        if (level >= VANILLA_LEVEL) {
-            return 1.0 + ((level - VANILLA_LEVEL) * 0.05);
+        if (level >= vanillaLevel) {
+            return 1.0 + ((level - vanillaLevel) * healthPerLevel);
         }
-        return 0.5 + ((level - 1) / 19.0) * 0.5;
+        return ramp(level, lowLevelStatMultiplier);
+    }
+
+    // Linear ramp from `low` at level 1 to 1.0 at the configured vanilla level.
+    private static double ramp(int level, double low) {
+        return low + ((level - 1) / (double) (vanillaLevel - 1)) * (1.0 - low);
     }
 
     // Mounts (horses, donkeys, mules, llamas, camels...) cap at 25 hearts, and are never slower
@@ -29,7 +45,7 @@ public class DropsCalculator {
     // which takes the best vanilla horse (30 health) to MOUNT_MAX_HEALTH.
     public static double getMountHealthMultiplier(int level) {
         if (level < VANILLA_LEVEL) {
-            return getStatMultiplier(level);
+            return 0.5 + ((level - 1) / 19.0) * 0.5;
         }
         return 1.0 + ((level - VANILLA_LEVEL) / 130.0) * (2.0 / 3.0);
     }
@@ -50,32 +66,32 @@ public class DropsCalculator {
         if (level <= 0) {
             return 1.0f;
         }
-        if (level >= VANILLA_LEVEL) {
-            return 1.0f + ((level - VANILLA_LEVEL) * 0.02f);
+        if (level >= vanillaLevel) {
+            return 1.0f + ((level - vanillaLevel) * (float) damagePerLevel);
         }
-        return (float) getStatMultiplier(level);
+        return (float) ramp(level, lowLevelStatMultiplier);
     }
 
-    // Sub-vanilla drop chance: lvl 1 = 0.25 ramping to 1.0 at lvl 20+.
+    // Sub-vanilla drop chance: lvl 1 = 0.25 ramping to 1.0 at the vanilla level and above.
     public static double getDropChance(int level) {
-        if (level <= 0 || level >= VANILLA_LEVEL) {
+        if (level <= 0 || level >= vanillaLevel) {
             return 1.0;
         }
-        return 0.25 + ((level - 1) / 19.0) * 0.75;
+        return ramp(level, lowLevelDropChance);
     }
 
     public static int calculateDropCount(int originalCount, int level) {
         if (level <= 0) {
             return originalCount;
         }
-        if (level < VANILLA_LEVEL) {
+        if (level < vanillaLevel) {
             return 1;
         }
 
-        float multiplier = 1.0f + ((level - VANILLA_LEVEL) * (float) LOOT_MULTIPLIER_PER_LEVEL);
+        float multiplier = 1.0f + ((level - vanillaLevel) * (float) lootPerLevel);
 
-        if (level >= 150) {
-            multiplier += (float) LEVEL_150_BONUS;
+        if (level >= maxLevel) {
+            multiplier += (float) maxLevelLootBonus;
         }
 
         return Math.round(originalCount * multiplier);
@@ -89,14 +105,14 @@ public class DropsCalculator {
         if (level <= 0) {
             return originalXp;
         }
-        if (level < VANILLA_LEVEL) {
+        if (level < vanillaLevel) {
             return Math.max(1, Math.round(originalXp * (float) getStatMultiplier(level)));
         }
 
-        double xpMultiplier = 1.0 + ((level - VANILLA_LEVEL) * 0.01);
+        double xpMultiplier = 1.0 + ((level - vanillaLevel) * xpPerLevel);
 
-        if (level >= 150) {
-            xpMultiplier += 2.0;
+        if (level >= maxLevel) {
+            xpMultiplier += maxLevelXpBonus;
         }
 
         return Math.round(originalXp * (float) xpMultiplier);

@@ -214,4 +214,50 @@ public class DropsCalculatorTest {
         tags.add("lvl:notanumber");
         assertEquals("Should return 0 for invalid level format", 0, DropsCalculator.getLevelFromTags(tags));
     }
+
+    // ---------- configurable scaling ----------
+
+    @org.junit.After
+    public void restoreConfig() {
+        DropsCalculator.vanillaLevel = 20;
+        DropsCalculator.lowLevelStatMultiplier = 0.5;
+        DropsCalculator.healthPerLevel = 0.05;
+        DropsCalculator.damagePerLevel = 0.02;
+        DropsCalculator.lowLevelDropChance = 0.25;
+        DropsCalculator.lootPerLevel = 0.02;
+        DropsCalculator.maxLevelLootBonus = 3.0;
+        DropsCalculator.xpPerLevel = 0.01;
+        DropsCalculator.maxLevelXpBonus = 2.0;
+        DropsCalculator.maxLevel = 150;
+    }
+
+    @Test
+    public void testConfigurableStats() {
+        DropsCalculator.vanillaLevel = 10;
+        DropsCalculator.lowLevelStatMultiplier = 0.2;
+        DropsCalculator.healthPerLevel = 0.1;
+        DropsCalculator.damagePerLevel = 0.04;
+        assertEquals(0.2, DropsCalculator.getStatMultiplier(1), 0.0001);
+        assertEquals(1.0, DropsCalculator.getStatMultiplier(10), 0.0001);
+        assertEquals(3.0, DropsCalculator.getStatMultiplier(30), 0.0001);
+        assertEquals(1.8f, DropsCalculator.getDamageMultiplier(30), 0.0001f);
+        assertEquals(0.2f, DropsCalculator.getDamageMultiplier(1), 0.0001f);
+    }
+
+    @Test
+    public void testConfigurableLootAndXp() {
+        DropsCalculator.vanillaLevel = 10;
+        DropsCalculator.lowLevelDropChance = 0.5;
+        DropsCalculator.lootPerLevel = 0.1;
+        DropsCalculator.xpPerLevel = 0.1;
+        DropsCalculator.maxLevel = 50;
+        DropsCalculator.maxLevelLootBonus = 1.0;
+        DropsCalculator.maxLevelXpBonus = 1.0;
+        assertEquals(0.5, DropsCalculator.getDropChance(1), 0.0001);
+        assertEquals(1.0, DropsCalculator.getDropChance(10), 0.0001);
+        assertEquals(3, DropsCalculator.calculateDropCount(1, 30));
+        assertEquals(30, DropsCalculator.calculateExperienceDrop(10, 30));
+        assertEquals(6, DropsCalculator.calculateDropCount(1, 50));
+        assertEquals(60, DropsCalculator.calculateExperienceDrop(10, 50));
+    }
 }
