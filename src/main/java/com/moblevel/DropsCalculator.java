@@ -19,6 +19,14 @@ public class DropsCalculator {
         return low + ((level - 1) / (double) (Live.vanillaLevel - 1)) * (1.0 - low);
     }
 
+    // Extra armor points above the vanilla level, capped at Live.armorMax.
+    public static double getArmorBonus(int level) {
+        if (level <= Live.vanillaLevel) {
+            return 0.0;
+        }
+        return Math.min((level - Live.vanillaLevel) * Live.armorPerLevel, Live.armorMax);
+    }
+
     public static float getDamageMultiplier(int level) {
         if (level <= 0) {
             return 1.0f;

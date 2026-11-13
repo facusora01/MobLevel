@@ -14,6 +14,10 @@ public final class Live {
     public static double xpPerLevel = 0.01;
     public static double maxLevelXpBonus = 2.0;
 
+    public static boolean armorEnabled = false;
+    public static double armorPerLevel = 0.1;
+    public static double armorMax = 20.0;
+
     private Live() {
     }
 }

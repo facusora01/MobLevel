@@ -206,6 +206,17 @@ public class DropsCalculatorTest {
         Live.xpPerLevel = 0.01;
         Live.maxLevelXpBonus = 2.0;
         Live.maxLevel = 150;
+        Live.armorPerLevel = 0.1;
+        Live.armorMax = 20.0;
+    }
+
+    @Test
+    public void testArmorBonus() {
+        assertEquals(0.0, DropsCalculator.getArmorBonus(20), 0.0001);
+        assertEquals(5.0, DropsCalculator.getArmorBonus(70), 0.0001);
+        assertEquals(13.0, DropsCalculator.getArmorBonus(150), 0.0001);
+        Live.armorPerLevel = 1.0;
+        assertEquals(20.0, DropsCalculator.getArmorBonus(150), 0.0001);
     }
 
     @Test

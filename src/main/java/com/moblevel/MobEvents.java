@@ -50,6 +50,9 @@ import com.mojang.logging.LogUtils;
 public class MobEvents {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final Random RANDOM = new Random();
+    // Optional armor scaling above the vanilla level (Live.armorEnabled).
+    private static final ResourceLocation ARMOR_ID =
+        ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "level_armor");
     private static final ResourceLocation SPEED_BOOST_ID =
         ResourceLocation.fromNamespaceAndPath(MobLevel.MODID, "speed_boost");
     // Version marker: mobs leveled by 1.2.2+ carry this tag and are never migrated.
@@ -354,6 +357,15 @@ public class MobEvents {
             }
         }
 
+        if (Live.armorEnabled && !(mob instanceof net.minecraft.world.entity.animal.horse.AbstractHorse)) {
+            AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+            double armorBonus = DropsCalculator.getArmorBonus(level);
+            if (armor != null && armorBonus > 0) {
+                armor.addOrReplacePermanentModifier(new AttributeModifier(ARMOR_ID,
+                    armorBonus, AttributeModifier.Operation.ADD_VALUE));
+            }
+        }
+
         if (mob instanceof Creeper creeper) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
@@ -442,6 +454,11 @@ public class MobEvents {
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
+        }
+
+        AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+        if (armor != null) {
+            armor.removeModifier(ARMOR_ID);
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);

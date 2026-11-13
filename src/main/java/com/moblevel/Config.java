@@ -119,6 +119,18 @@ public class Config {
             .comment("Extra XP multiplier added for mobs at maxLevel or above.")
             .defineInRange("maxLevelXpBonus", 2.0, 0.0, 100.0);
 
+    public static final ModConfigSpec.BooleanValue ARMOR_ENABLED = BUILDER
+            .comment("Give mobs above vanillaLevel bonus armor that grows with their level.")
+            .define("armorEnabled", false);
+
+    public static final ModConfigSpec.DoubleValue ARMOR_PER_LEVEL = BUILDER
+            .comment("Armor points added per level above vanillaLevel. 0.1 = +1 armor every 10 levels.")
+            .defineInRange("armorPerLevel", 0.1, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue ARMOR_MAX = BUILDER
+            .comment("Cap on the armor bonus, in armor points. Vanilla armor tops out at 30.")
+            .defineInRange("armorMax", 20.0, 0.0, 30.0);
+
     public static void bake() {
         Live.maxLevel = MAX_LEVEL.get();
         Live.vanillaLevel = VANILLA_LEVEL.get();
@@ -130,6 +142,9 @@ public class Config {
         Live.maxLevelLootBonus = MAX_LEVEL_LOOT_BONUS.get();
         Live.xpPerLevel = XP_PER_LEVEL.get();
         Live.maxLevelXpBonus = MAX_LEVEL_XP_BONUS.get();
+        Live.armorEnabled = ARMOR_ENABLED.get();
+        Live.armorPerLevel = ARMOR_PER_LEVEL.get();
+        Live.armorMax = ARMOR_MAX.get();
     }
 
     static final ModConfigSpec SPEC = BUILDER.build();
