@@ -121,6 +121,18 @@ public class NeoForgeConfig {
             .comment("Extra XP multiplier added for mobs at maxLevel or above.")
             .defineInRange("maxLevelXpBonus", 2.0, 0.0, 100.0);
 
+    public static final ModConfigSpec.BooleanValue ARMOR_ENABLED = BUILDER
+            .comment("Give mobs above vanillaLevel bonus armor that grows with their level.")
+            .define("armorEnabled", false);
+
+    public static final ModConfigSpec.DoubleValue ARMOR_PER_LEVEL = BUILDER
+            .comment("Armor points added per level above vanillaLevel. 0.1 = +1 armor every 10 levels.")
+            .defineInRange("armorPerLevel", 0.1, 0.0, 10.0);
+
+    public static final ModConfigSpec.DoubleValue ARMOR_MAX = BUILDER
+            .comment("Cap on the armor bonus, in armor points. Vanilla armor tops out at 30.")
+            .defineInRange("armorMax", 20.0, 0.0, 30.0);
+
     static final ModConfigSpec SPEC = BUILDER.build();
 
     static void onLoad(ModConfigEvent.Loading event) {
@@ -154,5 +166,8 @@ public class NeoForgeConfig {
         Config.maxLevelLootBonus = MAX_LEVEL_LOOT_BONUS.get();
         Config.xpPerLevel = XP_PER_LEVEL.get();
         Config.maxLevelXpBonus = MAX_LEVEL_XP_BONUS.get();
+        Config.armorEnabled = ARMOR_ENABLED.get();
+        Config.armorPerLevel = ARMOR_PER_LEVEL.get();
+        Config.armorMax = ARMOR_MAX.get();
     }
 }
