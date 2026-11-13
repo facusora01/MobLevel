@@ -192,7 +192,7 @@ public class MobEvents {
         int level = getLevelFromEntity(mob);
 
         if (level > 0) {
-            if (level < DropsCalculator.VANILLA_LEVEL) {
+            if (level < Config.vanillaLevel) {
                 // Sub-vanilla: each item rolls a drop chance; if it drops, count = 1.
                 double dropChance = DropsCalculator.getDropChance(level);
                 java.util.Iterator<ItemEntity> it = drops.iterator();

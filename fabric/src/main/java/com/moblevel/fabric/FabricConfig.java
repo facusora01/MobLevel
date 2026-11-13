@@ -41,6 +41,15 @@ final class FabricConfig {
         Config.bossMobsHaveLevelLimits = bool(p, "bossHaveLevelLimits", Config.bossMobsHaveLevelLimits);
         Config.bossMinLevel = (int) number(p, "bossMinLevel", Config.bossMinLevel, 1, 1000);
         Config.bossMaxLevel = (int) number(p, "bossMaxLevel", Config.bossMaxLevel, 1, 1000);
+        Config.vanillaLevel = (int) number(p, "vanillaLevel", Config.vanillaLevel, 2, 1000);
+        Config.lowLevelStatMultiplier = number(p, "lowLevelStatMultiplier", Config.lowLevelStatMultiplier, 0.01, 1.0);
+        Config.healthPerLevel = number(p, "healthPerLevel", Config.healthPerLevel, 0.0, 10.0);
+        Config.damagePerLevel = number(p, "damagePerLevel", Config.damagePerLevel, 0.0, 10.0);
+        Config.lowLevelDropChance = number(p, "lowLevelDropChance", Config.lowLevelDropChance, 0.0, 1.0);
+        Config.lootPerLevel = number(p, "lootPerLevel", Config.lootPerLevel, 0.0, 10.0);
+        Config.maxLevelLootBonus = number(p, "maxLevelLootBonus", Config.maxLevelLootBonus, 0.0, 100.0);
+        Config.xpPerLevel = number(p, "xpPerLevel", Config.xpPerLevel, 0.0, 10.0);
+        Config.maxLevelXpBonus = number(p, "maxLevelXpBonus", Config.maxLevelXpBonus, 0.0, 100.0);
         // Rewrite so missing keys show up with their comments and bad values get corrected.
         save();
     }
@@ -104,12 +113,40 @@ final class FabricConfig {
             # Minimum and maximum level for boss mobs. Range 1 to 1000.
             bossMinLevel=%d
             bossMaxLevel=%d
+
+            # Level at which health, damage, loot and XP equal vanilla. Range 2 to 1000.
+            vanillaLevel=%d
+
+            # Health and damage multiplier at level 1, ramping linearly to 1.0 at vanillaLevel. Range 0.01 to 1.0.
+            lowLevelStatMultiplier=%s
+
+            # Health and damage multiplier added per level above vanillaLevel. Range 0.0 to 10.0.
+            healthPerLevel=%s
+            damagePerLevel=%s
+
+            # Drop chance (0.0 to 1.0) at level 1, ramping linearly to 1.0 at vanillaLevel.
+            lowLevelDropChance=%s
+
+            # Extra drop count multiplier per level above vanillaLevel. Range 0.0 to 10.0.
+            lootPerLevel=%s
+
+            # Extra loot multiplier for mobs at maxLevel or above. Range 0.0 to 100.0.
+            maxLevelLootBonus=%s
+
+            # Extra XP multiplier per level above vanillaLevel. Range 0.0 to 10.0.
+            xpPerLevel=%s
+
+            # Extra XP multiplier for mobs at maxLevel or above. Range 0.0 to 100.0.
+            maxLevelXpBonus=%s
             """.formatted(
                 Config.highLevelChance, Config.levelRarityExponent,
                 Config.hostileHighLevelChance, Config.hostileLevelRarityExponent,
                 Config.commonLevelSkew, Config.maxLevel,
                 Config.breedingMutationChance, Config.breedingMutationMinBonus, Config.breedingMutationMaxBonus,
-                Config.uninstallMode, Config.bossMobsHaveLevelLimits, Config.bossMinLevel, Config.bossMaxLevel);
+                Config.uninstallMode, Config.bossMobsHaveLevelLimits, Config.bossMinLevel, Config.bossMaxLevel,
+                Config.vanillaLevel, Config.lowLevelStatMultiplier, Config.healthPerLevel, Config.damagePerLevel,
+                Config.lowLevelDropChance, Config.lootPerLevel, Config.maxLevelLootBonus,
+                Config.xpPerLevel, Config.maxLevelXpBonus);
         try {
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, text);
