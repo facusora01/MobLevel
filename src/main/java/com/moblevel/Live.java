@@ -18,6 +18,10 @@ public final class Live {
     public static double armorPerLevel = 0.1;
     public static double armorMax = 20.0;
 
+    public static boolean distanceScalingEnabled = false;
+    public static int blocksPerLevel = 100;
+    public static int distanceMaxBonus = 50;
+
     private Live() {
     }
 }

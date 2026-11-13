@@ -10,6 +10,15 @@ public class LevelCalculatorTest {
     private static final int MAX = 150;
 
     @Test
+    public void distanceBonusAddsOneLevelPerBlocksPerLevelUpToCap() {
+        assertEquals(10, LevelCalculator.applyDistanceBonus(10, 99, 100, 50, MAX));
+        assertEquals(15, LevelCalculator.applyDistanceBonus(10, 500, 100, 50, MAX));
+        assertEquals(60, LevelCalculator.applyDistanceBonus(10, 100000, 100, 50, MAX));
+        assertEquals(MAX, LevelCalculator.applyDistanceBonus(MAX - 1, 5000, 100, 50, MAX));
+        assertEquals(10, LevelCalculator.applyDistanceBonus(10, 5000, 100, 0, MAX));
+    }
+
+    @Test
     public void testCommonBandWhenBandRollAboveChance() {
         // bandRoll 0.5 >= 0.05 -> common band 1-20
         int level = LevelCalculator.rollSpawnLevel(0.5, 0.5, HIGH_CHANCE, EXPONENT, MAX);

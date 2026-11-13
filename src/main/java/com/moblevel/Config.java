@@ -131,6 +131,19 @@ public class Config {
             .comment("Cap on the armor bonus, in armor points. Vanilla armor tops out at 30.")
             .defineInRange("armorMax", 20.0, 0.0, 30.0);
 
+    public static final ModConfigSpec.BooleanValue DISTANCE_SCALING_ENABLED = BUILDER
+            .comment("Raise the level of newly spawned mobs the farther they are from the world spawn.",
+                    "Does not apply to bred offspring.")
+            .define("distanceScalingEnabled", false);
+
+    public static final ModConfigSpec.IntValue BLOCKS_PER_LEVEL = BUILDER
+            .comment("Horizontal blocks from world spawn per extra level. 100 = +1 level every 100 blocks.")
+            .defineInRange("blocksPerLevel", 100, 1, 1000000);
+
+    public static final ModConfigSpec.IntValue DISTANCE_MAX_BONUS = BUILDER
+            .comment("Maximum levels the distance bonus can add. The result never exceeds maxLevel.")
+            .defineInRange("distanceMaxBonus", 50, 0, 1000);
+
     public static void bake() {
         Live.maxLevel = MAX_LEVEL.get();
         Live.vanillaLevel = VANILLA_LEVEL.get();
@@ -145,6 +158,9 @@ public class Config {
         Live.armorEnabled = ARMOR_ENABLED.get();
         Live.armorPerLevel = ARMOR_PER_LEVEL.get();
         Live.armorMax = ARMOR_MAX.get();
+        Live.distanceScalingEnabled = DISTANCE_SCALING_ENABLED.get();
+        Live.blocksPerLevel = BLOCKS_PER_LEVEL.get();
+        Live.distanceMaxBonus = DISTANCE_MAX_BONUS.get();
     }
 
     static final ModConfigSpec SPEC = BUILDER.build();
