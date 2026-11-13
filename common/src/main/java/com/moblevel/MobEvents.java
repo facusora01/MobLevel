@@ -52,6 +52,9 @@ public class MobEvents {
     // Level health scaling, as a permanent max-health modifier saved with the mob.
     private static final Identifier HEALTH_ID =
         Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_health");
+    // Optional armor scaling above the vanilla level (Config.armorEnabled).
+    private static final Identifier ARMOR_ID =
+        Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_armor");
     // Mount speed and jump scaling, permanent modifiers like the health one.
     private static final Identifier MOUNT_SPEED_ID =
         Identifier.fromNamespaceAndPath(MobLevel.MODID, "level_speed");
@@ -351,6 +354,15 @@ public class MobEvents {
             }
         }
 
+        if (Config.armorEnabled && !(mob instanceof AbstractHorse)) {
+            AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+            double bonus = DropsCalculator.getArmorBonus(level);
+            if (armor != null && bonus > 0) {
+                armor.addOrReplacePermanentModifier(new AttributeModifier(ARMOR_ID,
+                    bonus, AttributeModifier.Operation.ADD_VALUE));
+            }
+        }
+
         if (mob instanceof Creeper creeper) {
             double bonus = (level / 150.0) * 9.0;
             int newRadius = 3 + (int) bonus;
@@ -478,6 +490,11 @@ public class MobEvents {
             if (mob.getHealth() > mob.getMaxHealth()) {
                 mob.setHealth(mob.getMaxHealth());
             }
+        }
+
+        AttributeInstance armor = mob.getAttribute(Attributes.ARMOR);
+        if (armor != null) {
+            armor.removeModifier(ARMOR_ID);
         }
 
         AttributeInstance moveSpeed = mob.getAttribute(Attributes.MOVEMENT_SPEED);
