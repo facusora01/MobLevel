@@ -19,6 +19,9 @@ public class DropsCalculator {
     public static double xpPerLevel = 0.01;
     public static double maxLevelXpBonus = 2.0;
     public static int maxLevel = 150;
+    public static boolean armorEnabled = false;
+    public static double armorPerLevel = 0.1;
+    public static double armorMax = 20.0;
 
     // Health/damage with the default config: lvl 1 = 0.5x, lvl 20 = 1.0x, lvl 80 = 4.0x, lvl 150 = 7.5x.
     public static double getStatMultiplier(int level) {
@@ -60,6 +63,14 @@ public class DropsCalculator {
             return 1.0 + ((level - VANILLA_LEVEL) / 130.0) * 0.5;
         }
         return 0.75 + ((level - 1) / 19.0) * 0.25;
+    }
+
+    // Extra armor points above the vanilla level, capped at armorMax.
+    public static double getArmorBonus(int level) {
+        if (level <= vanillaLevel) {
+            return 0.0;
+        }
+        return Math.min((level - vanillaLevel) * armorPerLevel, armorMax);
     }
 
     public static float getDamageMultiplier(int level) {
