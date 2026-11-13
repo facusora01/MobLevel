@@ -2,6 +2,14 @@ package com.moblevel;
 
 public class LevelCalculator {
 
+    // Adds one level per blocksPerLevel blocks of horizontal distance (up to maxBonus levels),
+    // then clamps the result to 1..maxLevel.
+    public static int applyDistanceBonus(int level, double distance, int blocksPerLevel,
+                                         int maxBonus, int maxLevel) {
+        int bonus = (int) Math.min(Math.floor(distance / Math.max(1, blocksPerLevel)), maxBonus);
+        return Math.max(1, Math.min(level + bonus, maxLevel));
+    }
+
     /** Uniform common band, kept so existing callers and tests keep their meaning. */
     public static int rollSpawnLevel(double bandRoll, double curveRoll,
                                      double highChance, double exponent, int maxLevel) {
