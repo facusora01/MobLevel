@@ -2,6 +2,7 @@ package com.moblevel;
 
 import java.util.Random;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
@@ -323,13 +324,22 @@ public class MobEvents {
 
     private static int calculateLevel(Mob mob) {
         boolean hostile = isHostile(mob);
-        return LevelCalculator.rollSpawnLevel(
+        int level = LevelCalculator.rollSpawnLevel(
             mob.getRandom().nextDouble(),
             mob.getRandom().nextDouble(),
             hostile ? Config.hostileHighLevelChance : Config.highLevelChance,
             hostile ? Config.hostileLevelRarityExponent : Config.levelRarityExponent,
             Config.commonLevelSkew,
             Config.maxLevel);
+        if (Config.distanceScalingEnabled) {
+            // Horizontal distance to the world's respawn point; boss clamps run after this.
+            BlockPos spawn = mob.level().getSharedSpawnPos();
+            double dx = mob.getX() - (spawn.getX() + 0.5);
+            double dz = mob.getZ() - (spawn.getZ() + 0.5);
+            level = LevelCalculator.applyDistanceBonus(level, Math.sqrt(dx * dx + dz * dz),
+                Config.blocksPerLevel, Config.distanceMaxBonus, Config.maxLevel);
+        }
+        return level;
     }
 
     private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
