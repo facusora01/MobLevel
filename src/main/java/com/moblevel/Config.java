@@ -132,6 +132,19 @@ public class Config {
             .comment("Cap on the extra armor points (vanilla armor maxes out at 30).")
             .defineInRange("armorMax", 20.0, 0.0, 30.0);
 
+    public static final ForgeConfigSpec.BooleanValue DISTANCE_SCALING_ENABLED = BUILDER
+            .comment("Natural spawns gain levels the farther they are from the world spawn point.",
+                    "Not applied to bred offspring. Boss level limits still apply afterwards.")
+            .define("distanceScalingEnabled", false);
+
+    public static final ForgeConfigSpec.IntValue BLOCKS_PER_LEVEL = BUILDER
+            .comment("Horizontal blocks from the world spawn needed for each extra level.")
+            .defineInRange("blocksPerLevel", 100, 1, 1000000);
+
+    public static final ForgeConfigSpec.IntValue DISTANCE_MAX_BONUS = BUILDER
+            .comment("Maximum extra levels the distance bonus can add (the result is still capped at maxLevel).")
+            .defineInRange("distanceMaxBonus", 50, 0, 1000);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     // Copies the loaded values into the calculators; called on config load and reload.
