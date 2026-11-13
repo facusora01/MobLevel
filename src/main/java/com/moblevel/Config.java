@@ -130,6 +130,18 @@ public class Config {
             .comment("Maximum bonus armor points.")
             .defineInRange("armorMax", 20.0, 0.0, 30.0);
 
+    public static final ForgeConfigSpec.BooleanValue DISTANCE_SCALING_ENABLED = BUILDER
+            .comment("Natural spawns gain levels the farther they are from the world spawn (not bred offspring).")
+            .define("distanceScalingEnabled", false);
+
+    public static final ForgeConfigSpec.IntValue BLOCKS_PER_LEVEL = BUILDER
+            .comment("Blocks from world spawn per extra level.")
+            .defineInRange("blocksPerLevel", 100, 1, 100000);
+
+    public static final ForgeConfigSpec.IntValue DISTANCE_MAX_BONUS = BUILDER
+            .comment("Maximum levels added by distance.")
+            .defineInRange("distanceMaxBonus", 50, 0, 1000);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
 
     private static boolean validateItemName(final Object obj) {
