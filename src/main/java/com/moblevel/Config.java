@@ -82,7 +82,58 @@ public class Config {
             .comment("Maximum level for boss mobs (Dragon, Wither, etc.)")
             .defineInRange("bossMaxLevel", 80, 1, 1000);
 
+    public static final ForgeConfigSpec.IntValue VANILLA_LEVEL = BUILDER
+            .comment("Level at which health, damage, loot and XP equal vanilla. Below it mobs are",
+                    "weaker, above it they scale up. Mounts and villager trades keep level 20.")
+            .defineInRange("vanillaLevel", 20, 2, 1000);
+
+    public static final ForgeConfigSpec.DoubleValue LOW_LEVEL_STAT_MULTIPLIER = BUILDER
+            .comment("Health/damage multiplier at level 1, ramping linearly to 1.0 at vanillaLevel.")
+            .defineInRange("lowLevelStatMultiplier", 0.5, 0.01, 1.0);
+
+    public static final ForgeConfigSpec.DoubleValue HEALTH_PER_LEVEL = BUILDER
+            .comment("Extra health multiplier per level above vanillaLevel (0.05 = +5% of base per level).")
+            .defineInRange("healthPerLevel", 0.05, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue DAMAGE_PER_LEVEL = BUILDER
+            .comment("Extra damage multiplier per level above vanillaLevel (0.02 = +2% of base per level).")
+            .defineInRange("damagePerLevel", 0.02, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue LOW_LEVEL_DROP_CHANCE = BUILDER
+            .comment("Chance each drop is kept at level 1, ramping linearly to 1.0 at vanillaLevel.")
+            .defineInRange("lowLevelDropChance", 0.25, 0.0, 1.0);
+
+    public static final ForgeConfigSpec.DoubleValue LOOT_PER_LEVEL = BUILDER
+            .comment("Extra loot multiplier per level above vanillaLevel.")
+            .defineInRange("lootPerLevel", 0.02, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue MAX_LEVEL_LOOT_BONUS = BUILDER
+            .comment("Extra loot multiplier added at maxLevel.")
+            .defineInRange("maxLevelLootBonus", 3.0, 0.0, 100.0);
+
+    public static final ForgeConfigSpec.DoubleValue XP_PER_LEVEL = BUILDER
+            .comment("Extra XP multiplier per level above vanillaLevel.")
+            .defineInRange("xpPerLevel", 0.01, 0.0, 10.0);
+
+    public static final ForgeConfigSpec.DoubleValue MAX_LEVEL_XP_BONUS = BUILDER
+            .comment("Extra XP multiplier added at maxLevel.")
+            .defineInRange("maxLevelXpBonus", 2.0, 0.0, 100.0);
+
     static final ForgeConfigSpec SPEC = BUILDER.build();
+
+    // Copies the loaded values into the calculators; called on config load and reload.
+    static void apply() {
+        DropsCalculator.vanillaLevel = VANILLA_LEVEL.get();
+        DropsCalculator.lowLevelStatMultiplier = LOW_LEVEL_STAT_MULTIPLIER.get();
+        DropsCalculator.healthPerLevel = HEALTH_PER_LEVEL.get();
+        DropsCalculator.damagePerLevel = DAMAGE_PER_LEVEL.get();
+        DropsCalculator.lowLevelDropChance = LOW_LEVEL_DROP_CHANCE.get();
+        DropsCalculator.lootPerLevel = LOOT_PER_LEVEL.get();
+        DropsCalculator.maxLevelLootBonus = MAX_LEVEL_LOOT_BONUS.get();
+        DropsCalculator.xpPerLevel = XP_PER_LEVEL.get();
+        DropsCalculator.maxLevelXpBonus = MAX_LEVEL_XP_BONUS.get();
+        DropsCalculator.maxLevel = MAX_LEVEL.get();
+    }
 
     private static boolean validateItemName(final Object obj) {
         if (!(obj instanceof String itemName)) {
