@@ -23,3 +23,19 @@ Additional Resources:
 ==========
 Community Documentation: https://docs.neoforged.net/  
 NeoForged Discord: https://discord.neoforged.net/
+
+Configuration:
+==========
+Forge writes `config/moblevel-common.toml`. Changes only affect mobs spawned afterwards.
+Defaults keep the original behavior.
+
+Scaling (level `vanillaLevel` = vanilla stats):
+- `vanillaLevel` (20), `lowLevelStatMultiplier` (0.5), `healthPerLevel` (0.05), `damagePerLevel` (0.02)
+- `lowLevelDropChance` (0.25), `lootPerLevel` (0.02), `maxLevelLootBonus` (3.0)
+- `xpPerLevel` (0.01), `maxLevelXpBonus` (2.0)
+
+Armor per level (off by default):
+- `armorEnabled` (false), `armorPerLevel` (0.1), `armorMax` (20.0)
+
+Level by distance from world spawn (off by default, not applied to bred offspring):
+- `distanceScalingEnabled` (false), `blocksPerLevel` (100), `distanceMaxBonus` (50)

@@ -130,6 +130,19 @@ public class Config {
             .comment("Maximum armor bonus (needs armorEnabled).")
             .defineInRange("armorMax", 20.0, 0.0, 30.0);
 
+    public static final ForgeConfigSpec.BooleanValue DISTANCE_SCALING_ENABLED = BUILDER
+            .comment("Natural spawns gain one level per blocksPerLevel blocks from the world spawn.",
+                    "Not applied to bred offspring.")
+            .define("distanceScalingEnabled", false);
+
+    public static final ForgeConfigSpec.IntValue BLOCKS_PER_LEVEL = BUILDER
+            .comment("Horizontal blocks from world spawn per extra level (needs distanceScalingEnabled).")
+            .defineInRange("blocksPerLevel", 100, 1, 100000);
+
+    public static final ForgeConfigSpec.IntValue DISTANCE_MAX_BONUS = BUILDER
+            .comment("Maximum levels added by distance (needs distanceScalingEnabled).")
+            .defineInRange("distanceMaxBonus", 50, 0, 1000);
+
     // Pushes the spec values into DropsCalculator (called on config load and reload).
     static void sync() {
         DropsCalculator.vanillaLevel = VANILLA_LEVEL.get();
