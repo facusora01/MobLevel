@@ -21,7 +21,7 @@ public final class ClientPayloadHandler {
         if (entity == null) return;
 
         if (minecraft.player != null && entity.getId() == minecraft.player.getId()) {
-            minecraft.gameRenderer.displayItemActivation(payload.stack());
+            minecraft.player.displayItemActivation(payload.stack());
         }
 
         minecraft.level.playLocalSound(

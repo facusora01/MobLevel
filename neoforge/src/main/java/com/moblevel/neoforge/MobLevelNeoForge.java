@@ -44,7 +44,7 @@ public class MobLevelNeoForge {
         ITEMS.register(modEventBus);
         CREATIVE_MODE_TABS.register(modEventBus);
 
-        modContainer.registerConfig(ModConfig.Type.COMMON, NeoForgeConfig.SPEC);
+        modContainer.registerConfig(ModConfig.Type.LOCAL, NeoForgeConfig.SPEC, "moblevel-common.toml");
         modEventBus.addListener(NeoForgeConfig::onLoad);
         modEventBus.addListener(NeoForgeConfig::onReload);
 
