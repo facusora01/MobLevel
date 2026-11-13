@@ -277,6 +277,7 @@ public class MobEvents {
 
     @SubscribeEvent
     static void onDamageCalculation(LivingDamageEvent event) {
+        DropsCalculator.refresh();
         if (event.getSource().getEntity() instanceof Mob attacker) {
             int level = getLevelFromEntity(attacker);
             if (level > 0) {
@@ -288,6 +289,7 @@ public class MobEvents {
 
     @SubscribeEvent
     static void onExperienceDrop(LivingExperienceDropEvent event) {
+        DropsCalculator.refresh();
         if (!(event.getEntity() instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
 
@@ -303,6 +305,7 @@ public class MobEvents {
 
     @SubscribeEvent
     static void onLivingDrops(LivingDropsEvent event) {
+        DropsCalculator.refresh();
         if (!(event.getEntity() instanceof Mob mob)) return;
         int level = getLevelFromEntity(mob);
 
@@ -310,7 +313,7 @@ public class MobEvents {
         //     mob.getType().getDescription().getString(), level, event.getDrops().size());
 
         if (level > 0) {
-            if (level < DropsCalculator.VANILLA_LEVEL) {
+            if (level < DropsCalculator.vanillaLevel) {
                 // Sub-vanilla: each item rolls a drop chance; if it drops, count = 1.
                 double dropChance = DropsCalculator.getDropChance(level);
                 java.util.Iterator<ItemEntity> it = event.getDrops().iterator();
@@ -455,6 +458,7 @@ public class MobEvents {
     }
 
     private static void applyLevelStats(Mob mob, int level, boolean freshSpawn) {
+        DropsCalculator.refresh();
         AttributeInstance maxHealth = mob.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null) {
             if (!freshSpawn && maxHealth.getModifier(HEALTH_UUID) == null) {
